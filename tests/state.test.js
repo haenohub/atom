@@ -30,7 +30,7 @@ for(const recipe of RECIPES)test(`recipe ${recipe.result}: consumes exact ingred
   for(const [id]of Object.entries(recipe.needs))assert.equal(p.inventory[id],0);assert.equal(p.inventory[recipe.result],before+(recipe.count||1));assert.equal(p.stats.crafts,1);
 });
 test('equipment respects class and level and changes actual attributes',()=>{
-  const p=createPlayer('warrior');addItems(p,{ironSword:1,ironBow:1,leatherArmor:1});const old=attributes(p);assert.equal(equip(p,'ironBow').ok,false);assert.equal(equip(p,'ironSword').ok,false);gainXp(p,200);assert.equal(equip(p,'ironSword').ok,true);assert.equal(equip(p,'leatherArmor').ok,true);assert.equal(attributes(p).attack,old.attack+(p.level-1)*3+12);assert.equal(attributes(p).defense,Math.floor((p.level-1)*.7)+6);
+  const p=createPlayer('warrior');addItems(p,{ironSword:1,ironBow:1,leatherArmor:1});const old=attributes(p);assert.equal(equip(p,'ironBow').ok,false);assert.equal(equip(p,'ironSword').ok,false);gainXp(p,200);assert.equal(equip(p,'ironSword').ok,true);assert.equal(attributes(p).attack,old.attack+(p.level-1)*3+12);const beforeArmor=attributes(p);assert.equal(equip(p,'leatherArmor').ok,true);assert.equal(p.equipment.armor,'leatherArmor');assert.ok(attributes(p).defense>beforeArmor.defense);assert.ok(attributes(p).maxHp>beforeArmor.maxHp);
 });
 test('consumption uses inventory and buffs affect combat, guard reduces incoming damage',()=>{
   const p=createPlayer();const n=p.inventory.health;assert.equal(consume(p,'health').ok,false);assert.equal(p.inventory.health,n);p.hp=1;assert.equal(consume(p,'health').ok,true);assert.equal(p.inventory.health,n-1);assert.ok(p.hp>1);

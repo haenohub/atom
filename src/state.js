@@ -1,21 +1,37 @@
 import { CLASSES, BRANCHES, ITEMS, RECIPES, MAX_LEVEL, MONSTERS, QUESTS, SAVE_KEY, CAMP } from './data.js';
+import { EQUIPMENT_SLOTS, STAT_NAMES, CLASS_STATS, MAIN_STAT, starterGear } from './equipment-data.js';
 import { NPC_QUESTS } from './quest-data.js';
 import { sanitizeDrop } from './loot.js';
 export const xpForLevel = level => 50 + level * 24;
 export function createPlayer(classId = 'warrior') {
   if (!CLASSES[classId]) throw new Error('알 수 없는 직업');
   const c = CLASSES[classId];
-  return { classId, branch: null, level: 1, xp: 0, hp: c.hp, mana: c.mana, gold: 0,
-    inventory: { [c.weapon]: 1, health: 5, mana: 3 }, equipment: { weapon: c.weapon, armor: null },
+  const p={ classId, branch: null, level: 1, xp: 0, hp: c.hp, mana: c.mana, gold: 0,
+    inventory: { [c.weapon]: 1, health: 5, mana: 3, ...Object.fromEntries(Object.values(starterGear(classId)).map(id=>[id,1])) }, equipment: { weapon: c.weapon, ...starterGear(classId) }, allocations:{strength:0,dexterity:0,intelligence:0,vitality:0}, perspective:'first',
     stats: { kills: 0, gathers: 0, crafts: 0, chests: 0, advanced: 0, boss: 0, alchemy: 0 }, quests: {}, killsByType: {}, groundLoot: [], claimed: [], opened: [],
-    position: { ...CAMP }, buffs: { food: 0, rage: 0, guard: 0 }, playtime: 0 };
+    position: { ...CAMP }, buffs: { food: 0, rage: 0, guard: 0 }, playtime: 0 };const a=attributes(p);p.hp=a.maxHp;p.mana=a.maxMana;return p;
 }
+export function statPoints(p){return Math.max(0,(p.level-1)*3-Object.values(p.allocations||{}).reduce((sum,n)=>sum+n,0));}
 export function attributes(p) {
-  const c = CLASSES[p.classId], b = BRANCHES[p.branch] || {}, w = ITEMS[p.equipment.weapon] || {}, a = ITEMS[p.equipment.armor] || {};
-  return { maxHp: c.hp + (p.level - 1) * 14 + (b.hp || 0) + (a.hp || 0), maxMana: c.mana + (p.level - 1) * 6 + (b.mana || 0),
-    attack: Math.round((c.attack + (p.level - 1) * 3 + (w.attack || 0) + (b.attack || 0)) * (p.buffs.food > 0 ? 1.2 : 1) * (p.buffs.rage > 0 ? 1.6 : 1)),
-    defense: Math.floor((p.level - 1) * .7) + (a.defense || 0) + (b.defense || 0) };
+  const c=CLASSES[p.classId],b=BRANCHES[p.branch]||{},bonus={strength:0,dexterity:0,intelligence:0,vitality:0};let gearHp=0,gearMana=0,gearAttack=0,gearDefense=0;
+  for(const key of Object.keys(bonus))bonus[key]=p.allocations?.[key]||0;
+  for(const id of Object.values(p.equipment)){const item=ITEMS[id];if(!item)continue;gearHp+=item.hp||0;gearMana+=item.mana||0;gearAttack+=item.attack||0;gearDefense+=item.defense||0;for(const key of Object.keys(bonus))bonus[key]+=item.stats?.[key]||0;}
+  const primary=bonus[MAIN_STAT[p.classId]];
+  return {...Object.fromEntries(Object.entries(bonus).map(([key,n])=>[key,CLASS_STATS[p.classId][key]+p.level-1+n])),
+    maxHp:c.hp+(p.level-1)*14+(b.hp||0)+gearHp+bonus.vitality*8,
+    maxMana:c.mana+(p.level-1)*6+(b.mana||0)+gearMana+bonus.intelligence*7,
+    attack:Math.round((c.attack+(p.level-1)*3+gearAttack+(b.attack||0)+primary*1.5)*(p.buffs.food>0?1.2:1)*(p.buffs.rage>0?1.6:1)),
+    defense:Math.floor((p.level-1)*.7)+gearDefense+(b.defense||0)+Math.floor(bonus.vitality*.25),
+    critChance:Math.min(.5,.12+bonus.dexterity*.0035),critMultiplier:1.6+bonus.strength*.008,
+    manaRegen:3.5+bonus.intelligence*.06,speedMultiplier:1+Math.min(.15,bonus.dexterity*.003)};
 }
+function clampVitals(p){const a=attributes(p);p.hp=Math.min(p.hp,a.maxHp);p.mana=Math.min(p.mana,a.maxMana);}
+export function allocateStat(p,key){
+  if(!Object.hasOwn(STAT_NAMES,key)||statPoints(p)<1)return {ok:false,message:'배분 가능한 능력치 포인트가 없습니다.'};
+  p.allocations[key]++;return {ok:true,message:`${STAT_NAMES[key]} +1`};
+}
+export function resetStats(p){for(const key of Object.keys(STAT_NAMES))p.allocations[key]=0;clampVitals(p);return {ok:true,message:'능력치를 초기화했습니다. 포인트를 다시 배분하세요.'};}
+export function unequip(p,slot){if(!Object.hasOwn(EQUIPMENT_SLOTS,slot)||slot==='weapon'||!p.equipment[slot])return {ok:false,message:'해제할 장비가 없습니다.'};p.equipment[slot]=null;clampVitals(p);return {ok:true,message:'장비를 해제했습니다.'};}
 export function gainXp(p, amount) {
   if (!Number.isFinite(amount) || amount < 0) return 0;
   p.xp += amount; let levels = 0;
@@ -45,12 +61,13 @@ export function equip(p, id) {
   if (!item || !p.inventory[id] || !['weapon','armor'].includes(item.type)) return { ok: false, message: '장착할 수 없는 아이템입니다.' };
   if (item.classId && item.classId !== p.classId) return { ok: false, message: '다른 직업의 무기입니다.' };
   if (p.level < item.level) return { ok: false, message: `${item.level}레벨부터 장착할 수 있습니다.` };
-  p.equipment[item.type] = id;
-  const a = attributes(p); p.hp = Math.min(p.hp, a.maxHp);
+  p.equipment[item.slot||item.type] = id;
+  clampVitals(p);
   return { ok: true, message: `${item.name} 장착` };
 }
 export function consume(p, id) {
   const item = ITEMS[id]; if (item?.type !== 'consumable' || !(p.inventory[id] > 0)) return { ok: false, message: '사용할 아이템이 없습니다.' };
+  if(item.recall){p.inventory[id]--;return {ok:true,recall:true,message:'새벽 야영지로 귀환했습니다.'};}
   const a = attributes(p);
   if (!item.buff && (!item.heal || p.hp >= a.maxHp) && (!item.mana || p.mana >= a.maxMana)) return { ok: false, message: '이미 충분히 회복되어 있습니다.' };
   p.inventory[id]--; if (item.heal) p.hp = Math.min(a.maxHp, p.hp + a.maxHp * item.heal);
@@ -90,15 +107,18 @@ export function loadPlayer(storage = globalThis.localStorage) {
     p.branch = CLASSES[p.classId].branches.includes(raw.branch) && p.level >= 10 ? raw.branch : null;
     p.inventory = {};
     if (raw.inventory && typeof raw.inventory === 'object') for (const [id,n] of Object.entries(raw.inventory)) if (ITEMS[id] && Number.isInteger(n) && n>0) p.inventory[id] = Math.min(n,99999);
-    p.equipment = { weapon: CLASSES[p.classId].weapon, armor: null }; p.inventory[p.equipment.weapon] = Math.max(1,p.inventory[p.equipment.weapon] || 0);
-    for (const slot of ['weapon','armor']) {
+    p.equipment = Object.fromEntries(Object.keys(EQUIPMENT_SLOTS).map(slot=>[slot,null]));p.equipment.weapon=CLASSES[p.classId].weapon; p.inventory[p.equipment.weapon] = Math.max(1,p.inventory[p.equipment.weapon] || 0);
+    for (const slot of Object.keys(EQUIPMENT_SLOTS)) {
       const id = raw.equipment?.[slot], it = ITEMS[id];
-      if (it?.type === slot && p.inventory[id] && p.level >= it.level && (!it.classId || it.classId === p.classId)) p.equipment[slot] = id;
+      if (it && (it.slot||it.type) === slot && p.inventory[id] && p.level >= it.level && (!it.classId || it.classId === p.classId)) p.equipment[slot] = id;
     }
     for (const key of Object.keys(p.stats)) p.stats[key] = Math.floor(finite(raw.stats?.[key],0,1e7,0));
     p.claimed = Array.isArray(raw.claimed) ? [...new Set(raw.claimed.filter(id => QUESTS.some(q => q.id === id)))] : [];
     p.opened = Array.isArray(raw.opened) ? [...new Set(raw.opened.filter(id => typeof id === 'string' && /^chest-\d+$/.test(id)))].slice(0,100) : [];
     if (raw.position && Number.isFinite(raw.position.x) && Number.isFinite(raw.position.z)) p.position = { x: finite(raw.position.x,-310,310,0), z: finite(raw.position.z,-310,310,44) };
+    let budget=(p.level-1)*3;
+    for(const key of Object.keys(STAT_NAMES)){const points=Math.floor(finite(raw.allocations?.[key],0,budget,0));p.allocations[key]=points;budget-=points;}
+    p.perspective=raw.perspective==='third'?'third':'first';
     const a = attributes(p); p.hp = finite(raw.hp,1,a.maxHp,a.maxHp); p.mana = finite(raw.mana,0,a.maxMana,a.maxMana);
     for(const [type,n] of Object.entries(raw.killsByType||{}))if(MONSTERS[type])p.killsByType[type]=Math.floor(finite(n,0,1e7,0));
     for(const q of NPC_QUESTS){const entry=raw.quests?.[q.id];if(entry&&['active','completed'].includes(entry.status))p.quests[q.id]={status:entry.status,baseline:Math.floor(finite(entry.baseline,0,1e7,0))};}

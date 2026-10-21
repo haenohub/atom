@@ -1,3 +1,4 @@
+import { GEAR_ITEMS, GEAR_RECIPES } from './equipment-data.js';
 export const MAX_LEVEL = 20;
 export const SAVE_KEY = 'aetherwild.save.v1';
 export const CAMP = { x: 0, z: 44 };
@@ -49,6 +50,8 @@ export function skillsFor(player) {
 }
 const material = (name, icon, rarity = 'common') => ({ name, icon, rarity, type: 'material' });
 export const ITEMS = {
+  ...GEAR_ITEMS,
+  recall: {name:'마을 귀환 주문서',type:'consumable',rarity:'uncommon',recall:true,description:'즉시 새벽 야영지로 귀환합니다. 사용 시 1개 소모.'},
   herb: material('야생초', '♧'), mushroom: material('숲 버섯', '♠'), wood: material('단단한 목재', '▥'), iron: material('철광석', '⬡'),
   slime: material('점액', '◉'), leather: material('가죽', '▱'), meat: material('생고기', '◈'), fang: material('송곳니', '⋀', 'uncommon'),
   water: material('물의 정수', '◊', 'uncommon'), crystal: material('수정', '◇', 'uncommon'), frost: material('서리꽃', '❄', 'rare'),
@@ -72,6 +75,7 @@ export const ITEMS = {
   dragonArmor: { name: '비룡 비늘 갑옷', icon: '⬟', rarity: 'epic', type: 'armor', defense: 23, hp: 85, level: 14 },
 };
 export const RECIPES = [
+  ...GEAR_RECIPES,
   { result: 'ironSword', category: 'smith', needs: { iron: 4, wood: 2, leather: 2 } },
   { result: 'ironBow', category: 'smith', needs: { wood: 5, leather: 3, fang: 1 } },
   { result: 'crystalStaff', category: 'smith', needs: { wood: 3, crystal: 2, water: 1 } },
@@ -105,6 +109,8 @@ export const MONSTERS = {
   drake: { name: '잿불 비룡', level: 18, hp: 660, attack: 51, speed: 4.4, range: 4.5, color: 0xc76c4d, shape: 'drake', scale: 1.8, drops: [['fire',1,2,3],['scale',.6,1,3],['star',.25,1,1]] },
   ancient: { name: '고대 수호자', level: 20, hp: 1850, attack: 65, speed: 3.2, range: 5.5, color: 0x8e8270, shape: 'golem', scale: 3, boss: true, drops: [['relic',1,3,5],['star',1,1,3],['scale',.8,2,4],['heart',.25,1,1]] },
 };
+// One independent recall-scroll roll per kill; bosses guarantee one.
+for(const m of Object.values(MONSTERS))m.drops.push(['recall',m.boss?1:m.level>=12?.22:.12,1,1]);
 export const QUESTS = [
   { id: 'first', name: '숲의 첫 발걸음', description: '몬스터 3마리 처치', target: 3, stat: 'kills', xp: 100, gold: 30 },
   { id: 'gather', name: '자연이 주는 선물', description: '채집물 5회 수집', target: 5, stat: 'gathers', xp: 100, gold: 30 },

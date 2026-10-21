@@ -1,6 +1,17 @@
 # AETHERWILD · 에테르와일드
 
-자연을 탐험하며 성장하는 **브라우저용 3D 1인칭 싱글플레이 판타지 RPG**입니다. 현재 버전은 **v0.3 — People of the Wilds**입니다. 숲과 호수, 고원, 설산, 잿불 황무지를 로딩 없이 오갑니다. 3D 모델·지형·식생·무기·이펙트는 직접 코드로 만들고, 숲 재질과 25종 능력 아이콘은 이 프로젝트용으로 새로 생성했습니다. 외부 스톡 그래픽 팩은 사용하지 않습니다.
+자연을 탐험하며 성장하는 **브라우저용 3D 1·3인칭 싱글플레이 판타지 RPG**입니다. 현재 버전은 **v0.4 — A Forged Identity**입니다. 숲과 호수, 고원, 설산, 잿불 황무지를 로딩 없이 오갑니다. 3D 모델·지형·식생·무기·이펙트는 직접 코드로 만들고, 전리품·장비·스킬 아이콘 86개, 캐릭터 초상화 6개와 재질 12종은 이 프로젝트용으로 새로 생성했습니다. 외부 스톡 그래픽 팩은 사용하지 않습니다.
+
+## v0.4 변경 사항
+
+- **전사 캔슬 전투**: 기본 공격 ↔ 스킬 ↔ 스킬의 동작 대기 삭제. 취소된 미발동 공격은 나중에 적중하지 않으며 마나·스킬 재사용 시간은 유지
+- **F1 시점 전환**: 플레이어 위치를 유지하는 1인칭 ↔ 3인칭. 장애물 카메라 보정과 Alt+마우스 자유 시점
+- **직업별 장비**: 무기·상의·투구·장갑·신발 5슬롯, 새 방어구 24개와 기존 장비 12개. 착용/해제가 능력치와 3D 모델에 반영
+- **능력치 배분**: 레벨당 3포인트, 힘·민첩·지능·체력, 공격력·HP/MP·방어·치명타·이동·마나 회복 반영, 무료 초기화
+- **원화·재질·UI 개편**: 아이콘 86개, 초상화 6개, 새 재질 12종. 장비 슬롯·능력치 패널·가방·제작·대화·도감·HUD에 통합
+- **모델과 전투 효과**: 직업별 전신 모델, 몬스터별 서리 결정·갈기·발톱·날개 뼈대·수호자 문양. 실제 운석 표면·균열·화염 꼬리, 얼음 기둥, 번개, 원소별 타격 효과
+- **마을 귀환 주문서**: 일반 몬스터 12%/22%, 보스 100% 드랍. 바닥에서 줍고 **R** 또는 가방에서 사용
+- [v0.4 변경 상세와 저장 호환](docs/FORGED_IDENTITY.md)
 
 ## v0.3 변경 사항
 
@@ -32,13 +43,9 @@ bash play.sh
 
 ## 화면
 
-![NPC 대화와 의뢰](docs/screenshots/v0.3-npc-dialogue.png)
+![새 장비 창과 아이템 원화 · 검증 캐릭터](docs/screenshots/v0.4-inventory.png)
 
-![야영지의 순찰대장](docs/screenshots/v0.3-camp.png)
-
-![궁수 활 당김과 화살 장전](docs/screenshots/v0.2-bow.png)
-
-![마법사 지면 범위 지정](docs/screenshots/v0.2-mage-area.png)
+![표면과 화염 꼬리가 있는 운석](docs/screenshots/v0.4-meteor.png)
 
 ## 실행 패키지 다운로드
 
@@ -88,6 +95,7 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_smoke.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_combat.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_revision.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_adventure.py
+CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_identity.py
 ```
 
 `GAME_URL`로 서버 주소, `GAME_ARTIFACTS`로 스크린샷 저장 경로를 바꿀 수 있습니다. 브라우저 테스트는 격리된 브라우저의 테스트 캐릭터를 사용하며, 개발 서버에서만 제공되는 테스트 접근점을 사용합니다. 프로덕션 빌드에는 해당 접근점이 없습니다.
@@ -99,6 +107,9 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_adventure.py
 | WASD / 방향키 | 이동 |
 | 마우스 / 좌클릭 | 시점 / 전사 공격 · 궁수 누른 채 당기고 놓아 발사 · 마법사 범위 확정 |
 | 우클릭 | 피해 감소 방어, 궁수는 추가 조준 |
+| F1 | 1인칭 ↔ 3인칭 |
+| Alt + 마우스 | 3인칭 자유 시점 |
+| R | 마을 귀환 주문서 1개 사용 |
 | Space | 점프, 물에서 헤엄치기 |
 | 왼쪽 Shift | 달리기, 기력 소모 |
 | 1–5 | 전사 스킬 · 궁수 화살 변경/회복 · 마법사 범위 선택/회복 |
@@ -126,8 +137,9 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_adventure.py
 - NPC 3명, 선행 조건이 있는 의뢰 6개, 납품·처치·제작, 직접 보고하는 보상과 진행 저장
 - 물리적으로 떨어지는 전리품 주머니와 E 수거, 미수거 전리품 저장
 - 세 직업, 여섯 2차 전직, 직업별 기본 스킬 3개와 전직별 스킬 2개
-- 독립 확률 전리품, 인벤토리와 장비 능력치, 채집, 대장·요리·연금술 제작식 14개
+- 독립 확률 전리품, 인벤토리와 장비 능력치, 채집, 대장·요리·연금술 제작식 38개
 - 중력·점프·지면 접촉·나무와 바위 충돌·수영·달리기·기력·낙하 피해
+- 장비 5슬롯, 직업별 방어구, 레벨당 능력치 배분, 귀환 주문서
 - 지도·미니맵·도감·목표 보상, 자동 저장·이어하기·저장 파일 내보내기/가져오기
 - 낮음/높음 그래픽 설정, 직접 합성한 효과음 켜기/끄기 (기본 꺼짐)
 
@@ -141,6 +153,9 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_adventure.py
 - `src/actors.js` / `src/motion.js`: 관절 모델과 전사·몬스터 애니메이션
 - `src/ground-loot.js` / `src/loot.js`: 전리품 낙하·수거·직렬화
 - `src/terrain.js` / `src/world.js`: 지형과 직접 제작한 3D 모델
+- `src/equipment-data.js`: 직업별 장비·제작식·능력치 정의
+- `src/avatar.js` / `src/camera.js`: 착용 장비를 반영하는 전신 모델·3인칭 카메라
+- `src/spell-art.js` / `src/surfaces.js`: 스킬별 3D 효과·새 재질
 - `src/engine.js`: 이동·물리·전투·상호작용·렌더링
 - `src/main.js` / `src/style.css`: 게임 UI
 

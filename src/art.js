@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { surfaceMap } from './surfaces.js';
 
 // Original procedural material maps and cutout foliage. No stock asset pack.
-const cache = new Map();
+const cache = new Map(),sharedWind={value:0};
 const hash = (x, y) => { const n=Math.sin(x*127.1+y*311.7)*43758.5453; return n-Math.floor(n); };
 const mix=(a,b,t)=>a+(b-a)*t;
 function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);return mix(mix(hash(ix,iy),hash(ix+1,iy),u),mix(hash(ix,iy+1),hash(ix+1,iy+1),u),v);}
@@ -46,40 +47,42 @@ export function materials(){
   if(cache.has('materials'))return cache.get('materials');
   const bark=surface('bark'),rock=surface('rock'),soil=surface('soil'),leather=surface('leather'),ground=surface('ground');
   const make=(texture,extra={})=>new THREE.MeshStandardMaterial({map:texture.map,normalMap:texture.normal,normalScale:new THREE.Vector2(.55,.55),roughness:.94,...extra});
-  const leafMap=leafSpray();
-  const leaf=new THREE.MeshLambertMaterial({map:leafMap,alphaTest:.4,side:THREE.DoubleSide,color:0xffffff,emissiveMap:leafMap,emissive:0x8fa76f,emissiveIntensity:.72});
-  leaf.onBeforeCompile=shader=>{shader.uniforms.uWind={value:0};leaf.userData.shader=shader;shader.vertexShader='uniform float uWind;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+  const leafMap=surfaceMap('leaves');
+  const leaf=new THREE.MeshLambertMaterial({map:leafMap,alphaTest:.35,alphaToCoverage:true,side:THREE.DoubleSide,color:0xffffff,emissiveMap:leafMap,emissive:0x8fa76f,emissiveIntensity:.72});
+  leaf.onBeforeCompile=shader=>{shader.uniforms.uWind=sharedWind;leaf.userData.shader=shader;shader.vertexShader='uniform float uWind;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
     #ifdef USE_INSTANCING
       vec4 windWorld=instanceMatrix*vec4(position,1.0);
       transformed.x+=sin(uWind*.8+windWorld.x*.11+windWorld.z*.08)*.13*uv.y;
       transformed.z+=cos(uWind*.6+windWorld.z*.12)*.08*uv.y;
     #endif`);};
-  const grassTexture=grassMap();
-  const grass=new THREE.MeshLambertMaterial({map:grassTexture,alphaTest:.4,side:THREE.DoubleSide,emissiveMap:grassTexture,emissive:0x9ba76c,emissiveIntensity:.65});
-  grass.onBeforeCompile=shader=>{shader.uniforms.uWind={value:0};grass.userData.shader=shader;shader.vertexShader='uniform float uWind;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+  const pine=leaf.clone();pine.map=surfaceMap('needles');pine.emissiveMap=pine.map;pine.onBeforeCompile=leaf.onBeforeCompile;
+  const grassTexture=surfaceMap('grass');
+  const grass=new THREE.MeshLambertMaterial({map:grassTexture,alphaTest:.35,alphaToCoverage:true,side:THREE.DoubleSide,emissiveMap:grassTexture,emissive:0x9ba76c,emissiveIntensity:.65});
+  grass.onBeforeCompile=shader=>{shader.uniforms.uWind=sharedWind;grass.userData.shader=shader;shader.vertexShader='uniform float uWind;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
     #ifdef USE_INSTANCING
       vec4 grassWorld=instanceMatrix*vec4(position,1.0);
       transformed.x+=sin(uWind*1.5+grassWorld.x*.4+grassWorld.z*.3)*.12*uv.y*uv.y;
     #endif`);};
-  const m={bark:make(bark),rock:make(rock),soil:make(soil),leather:make(leather),ground:make(ground),leaf,grass,metal:new THREE.MeshStandardMaterial({color:0xb6bbb7,metalness:.85,roughness:.26}),brass:new THREE.MeshStandardMaterial({color:0xb79a61,metalness:.72,roughness:.4})};
+  const fern=grass.clone();fern.map=surfaceMap('fern');fern.emissiveMap=fern.map;fern.onBeforeCompile=grass.onBeforeCompile;
+  const m={bark:make(bark,{map:surfaceMap('bark')}),rock:make(rock,{map:surfaceMap('rock')}),soil:make(soil,{map:surfaceMap('soil')}),leather:make(leather),ground:make(ground),leaf,pine,grass,fern,metal:new THREE.MeshStandardMaterial({color:0xb6bbb7,metalness:.85,roughness:.26}),brass:new THREE.MeshStandardMaterial({color:0xb79a61,metalness:.72,roughness:.4})};
   cache.set('materials',m);return m;
 }
 export function groundMaterial(){
-  const m=materials().ground.clone();m.vertexColors=true;m.map=new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/forest-floor.png`);m.map.colorSpace=THREE.SRGBColorSpace;m.map.wrapS=m.map.wrapT=THREE.RepeatWrapping;m.map.anisotropy=8;m.map.repeat.set(80,80);m.normalMap=surface('ground').normal.clone();m.normalMap.repeat.set(80,80);m.normalScale.set(.48,.48);
+  const m=materials().ground.clone();m.vertexColors=true;m.map=surfaceMap('ground');m.normalMap=surface('ground').normal.clone();m.normalMap.repeat.set(80,80);m.normalScale.set(.48,.48);
   m.onBeforeCompile=shader=>{
-    shader.uniforms.uRock={value:surface('rock').map};shader.uniforms.uSoil={value:surface('soil').map};
+    shader.uniforms.uRock={value:surfaceMap('rock')};shader.uniforms.uSoil={value:surfaceMap('soil')};
     shader.vertexShader='varying vec3 vTerrainWorld;\nvarying vec3 vTerrainNormal;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>\nvTerrainWorld=(modelMatrix*vec4(position,1.0)).xyz;\nvTerrainNormal=normalize(mat3(modelMatrix)*normal);`);
     shader.fragmentShader='varying vec3 vTerrainWorld;\nvarying vec3 vTerrainNormal;\nuniform sampler2D uRock;\nuniform sampler2D uSoil;\n'+shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
       vec2 groundUV=vTerrainWorld.xz*.17;
-      vec3 grassColor=texture2D(map,groundUV).rgb;
+      vec3 grassColor=texture2D(map,fract(groundUV)*.5+vec2(0.,.5)).rgb;
       float terrainPatch=sin(vTerrainWorld.x*.041+sin(vTerrainWorld.z*.067))*sin(vTerrainWorld.z*.053)*.5+.5;
-      vec3 secondColor=texture2D(map,vec2(-groundUV.y,groundUV.x)*.73+vec2(.31,.57)).rgb;
+      vec3 secondColor=texture2D(map,fract(vec2(-groundUV.y,groundUV.x)*.73+vec2(.31,.57))*.5+vec2(0.,.5)).rgb;
       grassColor=mix(grassColor,secondColor,terrainPatch*.42);
       grassColor*=mix(vec3(.87,.91,.82),vec3(1.06,1.03,.97),terrainPatch);
-      vec3 rockColor=texture2D(uRock,groundUV*.61).rgb;
-      vec3 soilColor=texture2D(uSoil,groundUV*.8).rgb;
+      vec3 rockColor=texture2D(uRock,fract(groundUV*.61)*.5).rgb;
+      vec3 soilColor=texture2D(uSoil,fract(groundUV*.8)*.5+vec2(.5,0.)).rgb;
       float slope=1.0-abs(vTerrainNormal.y);
       float path=1.0-smoothstep(2.0,4.4,abs(vTerrainWorld.x-sin(vTerrainWorld.z*.026)*1.4));
       path*=smoothstep(-165.0,-145.0,vTerrainWorld.z)*(1.0-smoothstep(57.0,68.0,vTerrainWorld.z));
@@ -115,4 +118,4 @@ export function grassGeometry(){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);g.computeVertexNormals();return g;
 }
 export function weatheredRock(detail=2){const g=new THREE.IcosahedronGeometry(1,detail),p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),r=.88+noise(x*3+z,y*3)*.23+noise(x*9,y*8+z)*.07;p.setXYZ(i,x*r,y*r,z*r);}g.computeVertexNormals();return g;}
-export function updateWind(time){const m=materials();for(const mat of [m.leaf,m.grass])if(mat.userData.shader)mat.userData.shader.uniforms.uWind.value=time;}
+export function updateWind(time){sharedWind.value=time;}

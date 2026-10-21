@@ -1,17 +1,21 @@
 import fs from 'node:fs';
 import { CLASSES, BRANCHES, SKILLS, BRANCH_SKILLS, MONSTERS, ITEMS, RECIPES, BIOMES } from '../src/data.js';
+import { EQUIPMENT_SLOTS, STAT_NAMES } from '../src/equipment-data.js';
 import { NPCS, NPC_QUESTS } from '../src/quest-data.js';
 let md='# 콘텐츠 수치표\n\n`npm run docs`로 `src/data.js`와 `src/quest-data.js`에서 생성한 문서입니다. 실제 게임 내 도감과 제작 창도 같은 데이터를 사용합니다.\n\n';
 md+='## 지역\n\n| 지역 | 권장 레벨 | 중심 좌표 (x,z) |\n|---|---|---|\n';
 for(const b of BIOMES)md+=`| ${b.name} | ${b.level} | ${b.x}, ${b.z} |\n`;
 md+='\n## 기본 직업\n\n| 직업 | 기본 체력 | 기본 마나 | 기본 공격력 | 전직 |\n|---|---|---|---|---|\n';
 for(const c of Object.values(CLASSES))md+=`| ${c.name} | ${c.hp} | ${c.mana} | ${c.attack} | ${c.branches.map(b=>BRANCHES[b].name).join(' / ')} |\n`;
-md+='\n레벨마다 체력 +14, 마나 +6, 공격력 +3, 기본 방어력 floor((레벨−1)×0.7). 경험치 요구량은 50 + 현재 레벨×24. 최고 20레벨. 기본 공격 치명타 확률 12%, 배율 160%. 스킬·지속 피해도 동일 치명타 추첨을 사용합니다. 음식 버프 공격력 ×1.2, 격노 ×1.6.\n\n';
+md+='\n레벨마다 체력 +14, 마나 +6, 공격력 +3, 기본 방어력 floor((레벨−1)×0.7). 경험치 요구량은 50 + 현재 레벨×24. 최고 20레벨. 기본 치명타 확률 12%, 배율 160%. 장비·배분 민첩 1당 확률 +0.35%p(최대 50%), 장비·배분 힘 1당 치명타 배율 +0.8%p. 스킬·지속 피해도 동일 치명타 추첨을 사용합니다. 음식 버프 공격력 ×1.2, 격노 ×1.6.\n\n';
+md+='## 장비와 능력치\n\n무기·상의·투구·장갑·신발 5개 슬롯. 새 캐릭터는 직업별 기본 방어구 4개를 착용합니다. 새 직업별 방어구는 기본 12개/Lv.1, 영웅 12개/Lv.12이며 기존 무기·공용 방어구도 유지합니다. 제작 창에서는 현재 직업이 착용할 수 있는 제작식을 표시합니다.\n\n레벨당 배분 포인트 3개. 힘/민첩/지능/체력에 배분하고 무료 초기화할 수 있습니다. 직업 주 능력치는 전사=힘, 궁수=민첩, 마법사=지능입니다. 장비와 배분으로 추가한 주 능력치 1당 공격력 +1.5, 체력 1당 최대 HP +8 및 방어력 +0.25(내림), 지능 1당 최대 MP +7 및 초당 MP 회복 +0.06, 민첩 1당 이동속도 +0.3%(최대 +15%)입니다. 기존 레벨 기본 성장과 더해 적용합니다.\n\n| 장비 | 직업 | 슬롯 | 레벨 | 방어 | HP / MP | 능력치 |\n|---|---|---|---|---|---|---|\n';
+for(const it of Object.values(ITEMS).filter(it=>it.slot))md+=`| ${it.name} | ${CLASSES[it.classId].name} | ${EQUIPMENT_SLOTS[it.slot]} | ${it.level} | ${it.defense} | ${it.hp||0} / ${it.mana||0} | ${Object.entries(it.stats).map(([key,n])=>STAT_NAMES[key]+' +'+n).join(', ')} |\n`;
+md+='\nF1로 1인칭/3인칭을 전환하고 Alt+마우스로 3인칭 자유 시점을 사용할 수 있습니다. 전사는 기본 공격과 스킬의 준비/회복 동작을 다른 공격으로 캔슬할 수 있습니다. 취소한 미발동 타격은 제거되고 사용한 마나·스킬 재사용 시간은 유지합니다.\n\n';
 md+='## 스킬\n\n| 직업 | 해금 레벨 | 스킬 | 마나 | 재사용(초) | 효과 |\n|---|---|---|---|---|---|\n';
 for(const [id,skills]of Object.entries(SKILLS))for(const s of skills)md+=`| ${CLASSES[id].name} | ${s.level} | ${s.name} | ${s.cost} | ${s.cooldown} | ${s.description} |\n`;
 for(const [id,skills]of Object.entries(BRANCH_SKILLS))for(const [i,s]of skills.entries())md+=`| ${BRANCHES[id].name} | ${i?15:10} | ${s.name} | ${s.cost} | ${s.cooldown} | ${s.description} |\n`;
 md+='\n## 전직 보너스\n\n';for(const b of Object.values(BRANCHES))md+=`- **${b.name}**: ${b.description}\n`;
-md+='\n## 몬스터와 드랍\n\n아래 아이템은 각각 독립적으로 추첨합니다. 예: 가죽 100%, 고기 65%인 늑대는 항상 가죽을 주며, 별도로 65% 확률로 고기를 줍니다. 수량 범위는 양 끝을 포함하는 균등 정수 추첨입니다. 골드는 3 + 몬스터 레벨×2, 경험치는 26 + 몬스터 레벨×17. 몬스터 재생성 40초. 경험치는 처치 시 지급하며, 아이템과 골드는 바닥의 전리품 주머니에서 E로 획득합니다. 미수거 주머니는 저장·부활 후에도 남습니다.\n\n';
+md+='\n## 몬스터와 드랍\n\n아래 아이템은 각각 독립적으로 추첨합니다. 예: 가죽 100%, 고기 65%인 늑대는 항상 가죽을 주며, 별도로 65% 확률로 고기를 줍니다. 수량 범위는 양 끝을 포함하는 균등 정수 추첨입니다. 골드는 3 + 몬스터 레벨×2, 경험치는 26 + 몬스터 레벨×17. 몬스터 재생성 40초. 경험치는 처치 시 지급하며, 아이템과 골드는 바닥의 전리품 주머니에서 E로 획득합니다. 미수거 주머니는 저장·부활 후에도 남습니다. 마을 귀환 주문서는 Lv.1–9 몬스터 12%, Lv.12–18 몬스터 22%, 고대 수호자 100%로 독립 추첨하며 1개 드랍합니다. R 또는 가방에서 사용하면 한 장을 소모하여 새벽 야영지로 즉시 귀환합니다.\n\n';
 for(const m of Object.values(MONSTERS)){
   md+=`### ${m.name}${m.boss?' · 우두머리':''}\n\n레벨 ${m.level} · HP ${m.hp} · 공격력 ${m.attack} · 속도 ${m.speed}m/s · 공격 거리 ${m.range}m\n\n| 아이템 | 확률 | 수량 |\n|---|---|---|\n`;
   for(const [id,p,min,max]of m.drops)md+=`| ${ITEMS[id].name} | ${Math.round(p*100)}% | ${min===max?min:`${min}–${max}`} |\n`;

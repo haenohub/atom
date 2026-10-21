@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { buildSpellVisual } from './spell-art.js';
+import { materials } from './art.js';
 import { heightAt } from './terrain.js';
 import { particleTexture } from './art.js';
 const TAU=Math.PI*2;
@@ -26,21 +28,18 @@ export class Effects {
   }
   ring(position,color,radius=4,life=.6){const group=new THREE.Mesh(groundPlane(radius,position),material(color));group.position.copy(position);this.scene.add(group);this.items.push({group,life,max:life,kind:'glyph'});}
   spell(position,radius,kind,color,delay=0,duration=0){
-    const life=delay+Math.max(duration,1.2),g=new THREE.Group();g.position.copy(position);
+    const life=delay+Math.max(duration,2),g=new THREE.Group();g.position.copy(position);
     const disk=new THREE.Mesh(groundPlane(radius,position),material(color));g.add(disk);this.scene.add(g);
     const entry={group:g,life,max:life,kind:'spell',spellKind:kind,color,delay,duration,radius,triggered:false,disk};
-    if(kind==='meteorZone'){
-      const meteor=new THREE.Mesh(new THREE.IcosahedronGeometry(1.3,2),new THREE.MeshStandardMaterial({color:0x3b2118,emissive:0xff6e21,emissiveIntensity:3,roughness:.8}));meteor.position.set(12,30,6);g.add(meteor);entry.meteor=meteor;
-    }
-    if(kind==='frostZone')for(let i=0;i<18;i++){
-      const a=i/18*TAU,r=radius*(.45+Math.random()*.4),shard=new THREE.Mesh(new THREE.ConeGeometry(.18,.9+Math.random()*1.3,5),new THREE.MeshPhysicalMaterial({color:0xabe3ee,metalness:.2,roughness:.15,transparent:true,opacity:.75,emissive:0x4f9dbb,emissiveIntensity:.55}));shard.position.set(Math.cos(a)*r,0,Math.sin(a)*r);shard.rotation.z=(Math.random()-.5)*.6;g.add(shard);
-    }
-    if(kind==='lightningZone')for(let i=0;i<4;i++){
-      const points=[],tx=(Math.random()-.5)*radius,tz=(Math.random()-.5)*radius;for(let j=0;j<9;j++)points.push(new THREE.Vector3(tx+(j===8?0:(Math.random()-.5)*2.5),22-j*2.75,tz+(Math.random()-.5)*1.7));
-      const bolt=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0xc9efff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,toneMapped:false}));g.add(bolt);
-    }
+    entry.visual=buildSpellVisual(kind,radius,color,position,delay,duration);g.add(entry.visual.root);
     this.items.push(entry);
   }
+  impact(position,{shape,color,crit=false,scale=1}){
+    const g=new THREE.Group();g.position.copy(position);this.scene.add(g);const pieces=[],stone=shape==='golem',liquid=shape==='slime'||shape==='spirit',count=crit?14:9;
+    for(let i=0;i<count;i++){const geo=stone?new THREE.IcosahedronGeometry(.07*scale,0):liquid?new THREE.SphereGeometry(.045*scale,8,6):new THREE.ConeGeometry(.018*scale,.2*scale,4),mat=stone?materials().rock.clone():new THREE.MeshBasicMaterial({color:liquid?(shape==='slime'?0xa4d46c:0x94e9ef):color,transparent:true,depthWrite:false,toneMapped:false});mat.transparent=true;const mesh=new THREE.Mesh(geo,mat);g.add(mesh);const velocity=new THREE.Vector3((Math.random()-.5)*5,1+Math.random()*3,(Math.random()-.5)*5);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),velocity.clone().normalize());pieces.push({mesh,velocity});}
+    this.particles(position,crit?0xffe5a8:color,crit?20:8,{size:crit?.3:.15,up:2,speed:3,life:.35});this.items.push({group:g,kind:'impact',pieces,life:.6,max:.6});
+  }
+  sweep(position,yaw,pitch,color,side=1){const group=new THREE.Mesh(new THREE.TorusGeometry(1.2,.035,6,48,Math.PI*1.3),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));group.position.copy(position);group.rotation.set(pitch,yaw,side*.5);this.scene.add(group);this.items.push({group,kind:'sweep',life:.22,max:.22});}
   trail(start,end,color){const geo=new THREE.BufferGeometry().setFromPoints([start.clone(),end.clone()]),mat=new THREE.LineBasicMaterial({color,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,toneMapped:false}),group=new THREE.Line(geo,mat);this.scene.add(group);this.items.push({group,life:.25,max:.25,kind:'line'});}
   update(dt){
     this.time+=dt;
@@ -50,11 +49,14 @@ export class Effects {
       }else if(e.kind==='glyph'){e.group.material.uniforms.uTime.value=age;e.group.material.uniforms.uOpacity.value=fade;}
       else if(e.kind==='spell'){
         e.disk.material.uniforms.uTime.value=age;e.disk.material.uniforms.uOpacity.value=fade*(age<e.delay?.48:1);
-        if(e.meteor){const t=Math.min(1,age/Math.max(.01,e.delay));e.meteor.position.set(12*(1-t),30*(1-t),6*(1-t));e.meteor.rotation.y+=dt*2;e.meteor.visible=age<e.delay;}
+        e.visual?.update(age,dt,fade);
         if(age>=e.delay&&!e.triggered){e.triggered=true;this.particles(e.group.position,e.color,70,{radius:e.radius*.8,up:e.spellKind==='fireZone'?2.8:5,speed:3,life:1.3,size:.22});}
         if(e.spellKind==='fireZone'||e.spellKind==='arcaneZone')if(e.triggered&&Math.random()<dt*10)this.particles(e.group.position,e.color,7,{radius:e.radius*.8,up:2.6,speed:.7,gravity:-.4,life:1,size:.13});
-        e.group.children.forEach(o=>{if(o.isLine)o.material.opacity=age>e.delay&&age<e.delay+.45?Math.max(.2,Math.sin(age*95)):0;});
-      }else e.group.material.opacity=fade;
+
+      }else if(e.kind==='impact'){
+        e.pieces.forEach(({mesh,velocity})=>{mesh.position.addScaledVector(velocity,dt);velocity.y-=8*dt;mesh.rotation.x+=dt*5;mesh.scale.multiplyScalar(Math.max(0,1-dt*1.1));mesh.material.opacity=fade;});
+      }else if(e.kind==='sweep'){e.group.material.opacity=fade;e.group.scale.multiplyScalar(1+dt*.7);}
+      else e.group.material.opacity=fade;
       if(e.life<=0){this.dispose(e.group);this.items.splice(i,1);}
     }
   }

@@ -63,7 +63,7 @@ export class World {
       const y=heightAt(x,z),s=.8+this.rng()*.4,b=biomeAt(x,z);
       this.instance('tree-skeleton',skeleton,m.bark,x,y,z,h,h,h,'#c1bbaa',this.rng()*6.28);this.colliders.push({x,z,r:.035*h});
       // Leaf cutouts on branches replace the old opaque polygon balls.
-      if(pineTree){this.instance('pine-leaves',pine,m.leaf,x,y+h*.65,z,h*.33,h*.56,h*.33,b==='snow'?'#d4dcce':'#c0cca6');}
+      if(pineTree){this.instance('pine-leaves',pine,m.pine,x,y+h*.65,z,h*.33,h*.56,h*.33,b==='snow'?'#d4dcce':'#c0cca6');}
       else for(let j=0;j<3;j++){
         const a=j*2.4,offset=j===0?0:h*.15;
         this.instance('tree-leaves',leaves,m.leaf,x+Math.sin(a)*offset,y+h*(.72+j*.065),z+Math.cos(a)*offset,h*.29*s,h*.24,h*.29*s,b==='highland'?'#ddd5ad':j%2?'#d4d9b6':'#bbcba5',a);
@@ -77,7 +77,7 @@ export class World {
     const fernParts=[];
     for(let i=0;i<7;i++){const geo=new THREE.PlaneGeometry(.18,.62);geo.translate(0,.3,0);geo.rotateX(-.65);geo.rotateY(i*2.4);fernParts.push(geo);}
     const fern=mergeGeometries(fernParts);fernParts.forEach(g=>g.dispose());
-    for(let i=0;i<210;i++){const a=this.rng()*6.28,r=10+this.rng()*62,x=Math.cos(a)*r,z=18+Math.sin(a)*r;if(isWater(x,z)||Math.abs(x)<5||Math.hypot(x,z-44)<12)continue;this.instance('grass-ferns',fern,m.grass,x,heightAt(x,z),z,.8+this.rng()*.7,1+this.rng(),.8+this.rng()*.7,'#c8d9a2',this.rng()*6.28);}
+    for(let i=0;i<210;i++){const a=this.rng()*6.28,r=10+this.rng()*62,x=Math.cos(a)*r,z=18+Math.sin(a)*r;if(isWater(x,z)||Math.abs(x)<5||Math.hypot(x,z-44)<12)continue;this.instance('grass-ferns',fern,m.fern,x,heightAt(x,z),z,.8+this.rng()*.7,1+this.rng(),.8+this.rng()*.7,'#c8d9a2',this.rng()*6.28);}
     // Denser, naturally sized trees frame the first route and leave a clear path.
     for(const [x,z,h]of [[-12,24,10],[14,15,11],[-19,2,13],[23,28,10],[-28,34,12],[27,-8,14],[-37,-15,12],[41,3,10],[-16,-29,11],[15,-39,12]])addTree(x,z,h,false);
     for(let i=0;i<260;i++){
@@ -97,7 +97,7 @@ export class World {
     // Ferns and small flowering undergrowth use the same original alpha art.
     for(let i=0;i<420;i++){
       const x=(this.rng()-.5)*420,z=(this.rng()-.5)*420,b=biomeAt(x,z);if(isWater(x,z)||b==='snow'||b==='volcano'||Math.abs(x)<5)continue;
-      const y=heightAt(x,z);this.instance('ferns',leaves,m.leaf,x,y+.28,z,.65,.4,.65,'#9baa7c',this.rng()*6);
+      const y=heightAt(x,z);this.instance('ferns',leaves,m.fern,x,y+.28,z,.65,.4,.65,'#9baa7c',this.rng()*6);
     }
   }
   mesh(geo, material, pos, scale, group=this.scene) {const m=new THREE.Mesh(geo,material);m.position.set(...pos);if(scale)m.scale.set(...scale);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;}
@@ -228,7 +228,7 @@ export class World {
     for(const c of this.chests)if(!c.opened)c.beam.material.opacity=.28+Math.sin(time*2)*.15;
     for(const n of this.nodes)n.group.visible=time>=n.availableAt&&(!viewer||Math.hypot(n.x-viewer.x,n.z-viewer.z)<(low?50:105));
     if(viewer){
-      for(const m of this.monsters)m.group.visible=(m.alive||(m.deathAge||0)<5)&&Math.hypot(m.x-viewer.x,m.z-viewer.z)<(low?65:130);
+      for(const m of this.monsters){const distance=Math.hypot(m.x-viewer.x,m.z-viewer.z);m.group.visible=(m.alive||(m.deathAge||0)<5)&&distance<(low?65:130);for(const detail of m.group.userData.details||[])detail.visible=distance<(low?22:60);}
       for(const c of this.chests)c.group.visible=Math.hypot(c.x-viewer.x,c.z-viewer.z)<120;
       for(const b of this.decorationBatches){const range=b.key.startsWith('grass')?(low?45:75):(low?115:225);b.mesh.visible=Math.hypot(b.center.x-viewer.x,b.center.z-viewer.z)<range+b.radius;}
     }

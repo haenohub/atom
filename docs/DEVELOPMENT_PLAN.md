@@ -1,3 +1,5 @@
+> **v0.4 업데이트**: 캔슬 전투·직업 장비·능력치·3인칭·귀환 주문서·그래픽 개편은 [FORGED_IDENTITY.md](FORGED_IDENTITY.md)를 확인하세요.
+
 > **v0.3 업데이트**: 전사·몬스터 모션, 물리 전리품과 NPC 의뢰는 [PEOPLE_OF_THE_WILDS.md](PEOPLE_OF_THE_WILDS.md)를 확인하세요. **v0.2 업데이트**: 아래는 최초 개발 계획입니다. 최신 그래픽·궁수·마법사 조작과 판정은 [ART_DIRECTION.md](ART_DIRECTION.md)와 `src/data.js`가 정본입니다.
 
 # AETHERWILD · 에테르와일드 개발 계획

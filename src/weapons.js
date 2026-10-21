@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surfaceMaterial } from './surfaces.js';
 import { materials } from './art.js';
 import { warriorPose } from './motion.js';
 import { ITEMS } from './data.js';
@@ -21,7 +22,7 @@ function hand(group,x,y,z){
 export function createWeapon(player){
   const g=new THREE.Group(),m=materials(),epic=ITEMS[player.equipment.weapon]?.rarity==='epic';
   const add=(geo,mat,x,y,z)=>{const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);g.add(mesh);return mesh;};
-  const wood=m.bark.clone(),steel=m.metal.clone(),brass=m.brass.clone();if(epic)steel.color.set(0xd8bc86);
+  const wood=m.bark.clone(),steel=surfaceMaterial('steel',0xd8dce1),brass=m.brass.clone();if(epic)steel.color.set(0xd8bc86);
   if(player.classId==='warrior'){
     const shape=new THREE.Shape();shape.moveTo(-.035,-.06);shape.lineTo(-.033,.54);shape.lineTo(0,.72);shape.lineTo(.033,.54);shape.lineTo(.035,-.06);shape.closePath();
     add(new THREE.ExtrudeGeometry(shape,{depth:.014,bevelEnabled:true,bevelSize:.008,bevelThickness:.006,bevelSegments:2,steps:1}),steel,0,0,0);
