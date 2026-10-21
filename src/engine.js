@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { bowShot, skillAvailability, isArrowSkill, inSpellArea } from './combat.js';
+import { createWeapon, animateWeapon, makeArrow } from './weapons.js';
+import { Effects } from './effects.js';
 import { World } from './world.js';
 import { heightAt, biomeAt, isWater, slopeAt, WATER_LEVEL } from './terrain.js';
 import { CAMP, CLASSES, MONSTERS, ITEMS, BIOMES, skillsFor } from './data.js';
@@ -6,19 +9,23 @@ import { attributes, gainXp, rollLoot, addItems, damagePlayer, claimQuests, save
 const UP=new THREE.Vector3(0,1,0), clamp=THREE.MathUtils.clamp;
 export class GameEngine {
   constructor(canvas, events={}) {
-    this.events=events;this.canvas=canvas;this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0xb9d1c8);this.scene.fog=new THREE.FogExp2(0xb9d1c8,.0037);
+    this.events=events;this.canvas=canvas;this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0xb9c9ce);this.scene.fog=new THREE.FogExp2(0xb9c9ce,.0026);
     this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.6));this.renderer.setSize(innerWidth,innerHeight);
-    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
+    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.98;
     this.camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.06,1100);this.camera.rotation.order='YXZ';this.scene.add(this.camera);
-    this.scene.add(new THREE.HemisphereLight(0xe8f5eb,0x6c7650,2.1));
-    this.sun=new THREE.DirectionalLight(0xffe6ba,3.1);this.sun.position.set(-65,100,-55);this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.camera.left=-75;this.sun.shadow.camera.right=75;this.sun.shadow.camera.top=75;this.sun.shadow.camera.bottom=-75;this.sun.shadow.camera.far=270;this.sun.shadow.normalBias=.12;this.sun.shadow.bias=-.0002;this.scene.add(this.sun,this.sun.target);
-    this.world=new World(this.scene);this.clock=new THREE.Clock();this.time=0;this.lastSave=0;this.active=false;this.player=null;this.locked=false;this.paused=true;this.keys=new Set();this.projectiles=[];this.effects=[];this.damageTexts=[];this.cooldowns=[0,0,0,0,0];this.attackCooldown=0;this.stamina=100;this.swing=0;this.shake=0;this.yaw=0;this.pitch=0;this.vy=0;this.grounded=true;this.fallPeak=0;this.combatUntil=0;this.lastBiome='forest';this.soundOn=false;this.audio=null;this.stepTimer=0;this.frameCount=0;this.frameTime=0;this.fps=0;
+    this.scene.add(new THREE.HemisphereLight(0xc9dce7,0x4f4c35,.85));
+    this.sun=new THREE.DirectionalLight(0xffe6ba,3.1);this.sun.position.set(-65,100,-55);this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.camera.left=-75;this.sun.shadow.camera.right=75;this.sun.shadow.camera.top=75;this.sun.shadow.camera.bottom=-75;this.sun.shadow.camera.far=270;this.sun.shadow.normalBias=.035;this.sun.shadow.bias=-.00008;this.sun.shadow.radius=3;this.scene.add(this.sun,this.sun.target);
+    const gl=this.renderer.getContext(),debug=gl.getExtension('WEBGL_debug_renderer_info');
+    const software=debug&&/swiftshader|llvmpipe|software/i.test(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL));
+    this.quality=new URLSearchParams(location.search).get('quality')||(software?'low':'high');
+    if(this.quality==='low'){this.renderer.shadowMap.enabled=false;this.renderer.setPixelRatio(.8);}
+    this.world=new World(this.scene,this.renderer);this.fx=new Effects(this.scene);this.fields=[];this.loadedArrowIndex=null;this.activeSpellIndex=null;this.drawStartedAt=null;this.bowCharge=0;this.clock=new THREE.Clock();this.time=0;this.lastSave=0;this.active=false;this.player=null;this.locked=false;this.paused=true;this.keys=new Set();this.projectiles=[];this.effects=[];this.damageTexts=[];this.cooldowns=[0,0,0,0,0];this.attackCooldown=0;this.stamina=100;this.swing=0;this.shake=0;this.yaw=0;this.pitch=0;this.vy=0;this.grounded=true;this.fallPeak=0;this.combatUntil=0;this.lastBiome='forest';this.soundOn=false;this.audio=null;this.stepTimer=0;this.frameCount=0;this.frameTime=0;this.fps=0;
     this.camera.position.set(24,heightAt(24,72)+8,72);this.camera.lookAt(-5,heightAt(0,20)+4,-20);
     this.bind();this.animate();
   }
   bind() {
     window.addEventListener('resize',()=>{this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);});
-    document.addEventListener('pointerlockchange',()=>{this.locked=document.pointerLockElement===this.canvas;this.keys.clear();if(this.active&&!this.locked)this.events.unlock?.();});
+    document.addEventListener('pointerlockchange',()=>{this.locked=document.pointerLockElement===this.canvas;this.keys.clear();if(this.active&&!this.locked){this.cancelActions();this.persist();this.events.unlock?.();}});
     document.addEventListener('visibilitychange',()=>{if(document.hidden&&this.active){this.persist();this.pause();this.events.unlock?.();}});
     document.addEventListener('mousemove',e=>{if(this.locked&&!this.paused){this.yaw-=e.movementX*.002;this.pitch=clamp(this.pitch-e.movementY*.002,-1.48,1.48);}});
     window.addEventListener('keydown',e=>{
@@ -33,49 +40,29 @@ export class GameEngine {
       if(/^Digit[1-5]$/.test(e.code))this.skill(Number(e.code.slice(-1))-1);
     });
     window.addEventListener('keyup',e=>this.keys.delete(e.code));
-    this.canvas.addEventListener('mousedown',e=>{if(this.active&&!this.paused&&this.locked){if(e.button===0)this.attack();if(e.button===2)this.blocking=true;}});
-    window.addEventListener('mouseup',e=>{if(e.button===2)this.blocking=false;});
+    this.canvas.addEventListener('mousedown',e=>{if(this.active&&!this.paused&&this.locked){if(e.button===0)this.attack();if(e.button===2){if(this.activeSpellIndex!==null){this.activeSpellIndex=null;this.fx.hidePreview();this.notify('시전 취소');}else this.blocking=true;}}});
+    window.addEventListener('mouseup',e=>{if(e.button===2)this.blocking=false;if(e.button===0&&this.active&&!this.paused&&this.locked&&this.player.classId==='ranger')this.releaseBow();});
     this.canvas.addEventListener('contextmenu',e=>e.preventDefault());
-    window.addEventListener('blur',()=>{this.keys.clear();this.blocking=false;});
+    window.addEventListener('blur',()=>{this.keys.clear();this.cancelActions();});
     window.addEventListener('beforeunload',()=>this.persist());
   }
   start(player) {
-    this.player=player;this.active=true;this.paused=false;this.stamina=100;this.cooldowns.fill(0);this.keys.clear();this.jumpRequested=false;this.combatUntil=0;this.vy=0;this.grounded=true;
-    this.yaw=.08;this.pitch=-.04;const {x,z}=player.position;this.feetY=Math.max(heightAt(x,z),isWater(x,z)?WATER_LEVEL-.8:-Infinity);this.fallPeak=this.feetY;this.camera.position.set(x,this.feetY+1.75,z);
+    this.player=player;this.active=true;this.paused=false;this.stamina=100;this.attackCooldown=0;this.cooldowns.fill(0);this.keys.clear();this.jumpRequested=false;this.combatUntil=0;this.vy=0;this.grounded=true;
+    this.cancelActions(true);this.fields=[];this.projectiles.forEach(p=>this.removeObject(p.mesh));this.projectiles=[];this.fx.clear();this.yaw=.08;this.pitch=-.1;const {x,z}=player.position;this.feetY=Math.max(heightAt(x,z),isWater(x,z)?WATER_LEVEL-.8:-Infinity);this.fallPeak=this.feetY;this.camera.position.set(x,this.feetY+1.75,z);
     for(const c of this.world.chests){c.opened=player.opened.includes(c.id);c.beam.visible=!c.opened;c.lid.rotation.x=c.opened?-.8:0;}
     for(const m of this.world.monsters){m.hp=m.def.hp;m.alive=true;m.group.visible=true;m.x=m.homeX;m.z=m.homeZ;m.aggro=false;m.slow=0;m.freeze=0;m.poison=0;m.poisonTick=0;}
     this.buildWeapon();this.lastBiome=biomeAt(x,z);this.events.biome?.(BIOMES.find(b=>b.id===this.lastBiome));this.initAudio();this.requestLock();
   }
   requestLock() {try { const result=this.canvas.requestPointerLock();result?.catch(()=>this.events.unlock?.());}catch{this.events.unlock?.();}}
   resume(){if(!this.player||this.player.hp<=0)return;this.paused=false;this.keys.clear();this.requestLock();}
-  pause(){this.paused=true;this.keys.clear();this.jumpRequested=false;this.blocking=false;if(document.pointerLockElement===this.canvas)document.exitPointerLock();this.persist();}
+  pause(){this.paused=true;this.keys.clear();this.jumpRequested=false;this.cancelActions();if(document.pointerLockElement===this.canvas)document.exitPointerLock();this.persist();}
   persist(){if(this.player){this.player.position={x:this.camera.position.x,z:this.camera.position.z};const ok=savePlayer(this.player);if(!ok&&!this.saveWarned){this.saveWarned=true;this.notify('브라우저 저장 공간을 사용할 수 없습니다. 현재 플레이만 유지됩니다.');}return ok;}return false;}
   notify(message){this.events.toast?.(message);}
   initAudio(){if(!this.audio)try{this.audio=new (window.AudioContext||window.webkitAudioContext)();}catch{} if(this.audio?.state==='suspended')this.audio.resume().catch(()=>{});}
   sound(freq=250,duration=.1,type='sine',gain=.035){if(!this.soundOn||!this.audio)return;const o=this.audio.createOscillator(),g=this.audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,this.audio.currentTime);o.frequency.exponentialRampToValueAtTime(Math.max(30,freq*.5),this.audio.currentTime+duration);g.gain.setValueAtTime(gain,this.audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,this.audio.currentTime+duration);o.connect(g);g.connect(this.audio.destination);o.start();o.stop(this.audio.currentTime+duration);}
   buildWeapon(){
-    if(this.weapon){this.camera.remove(this.weapon);this.weapon.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});}const g=new THREE.Group();const id=ITEMS[this.player.equipment.weapon],advanced=id?.rarity==='epic';
-    const steel=new THREE.MeshStandardMaterial({color:advanced?0xf2c16d:0xcbd7ce,metalness:.7,roughness:.25}),wood=new THREE.MeshStandardMaterial({color:0x71513b,roughness:.9}),gold=new THREE.MeshStandardMaterial({color:0xd4ad65,metalness:.55,roughness:.3});
-    const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);g.add(m);return m;};
-    if(this.player.classId==='warrior'){
-      add(new THREE.BoxGeometry(.075,.76,.035),steel,0,.3,0);const tip=add(new THREE.ConeGeometry(.052,.17,4),steel,0,.76,0);tip.rotation.y=Math.PI/4;
-      add(new THREE.BoxGeometry(.28,.045,.07),gold,0,-.1,0);add(new THREE.CylinderGeometry(.036,.036,.22,7),wood,0,-.23,0);add(new THREE.SphereGeometry(.06,8,6),gold,0,-.37,0);
-      g.position.set(.43,-.44,-.62);g.rotation.set(-.26,0,-.15);
-    }else if(this.player.classId==='ranger'){
-      const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.6,0),new THREE.Vector3(.18,-.3,0),new THREE.Vector3(.24,0,0),new THREE.Vector3(.18,.3,0),new THREE.Vector3(0,.6,0)]);
-      add(new THREE.TubeGeometry(curve,20,.032,6,false),wood,0,0,0);
-      const line=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-.6,0),new THREE.Vector3(0,.6,0)]);g.add(new THREE.Line(line,new THREE.LineBasicMaterial({color:0xe6d4ac})));
-      const shaft=add(new THREE.CylinderGeometry(.012,.012,.8,6),wood,0,0,-.23);shaft.rotation.x=Math.PI/2;
-      const tip=add(new THREE.ConeGeometry(.035,.12,4),steel,0,0,-.68);tip.rotation.x=-Math.PI/2;
-      g.position.set(.4,-.28,-.75);g.rotation.z=-.18;
-    }else{
-      add(new THREE.CylinderGeometry(.035,.055,1.2,7),wood,0,-.15,0);add(new THREE.TorusGeometry(.13,.02,6,12),gold,0,.5,0);
-      add(new THREE.OctahedronGeometry(.12),new THREE.MeshStandardMaterial({color:advanced?0xffc47e:0xa9e2da,emissive:advanced?0xff8f36:0x7abcb6,emissiveIntensity:1}),0,.51,0);
-      g.position.set(.42,-.4,-.65);g.rotation.z=-.1;
-    }
-    // Gloved hand, produced from geometry rather than an imported character asset.
-    const glove=add(new THREE.BoxGeometry(.13,.17,.15),new THREE.MeshStandardMaterial({color:0x8b7450}),0,-.23,.015);glove.rotation.z=.12;
-    this.weapon=g;this.weaponBase=g.position.clone();this.camera.add(g);
+    if(this.weapon){this.camera.remove(this.weapon);this.weapon.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});}
+    this.weapon=createWeapon(this.player);this.weaponBase=this.weapon.position.clone();this.camera.add(this.weapon);
   }
   movement(dt){
     const p=this.player,keys=this.keys,x=this.camera.position.x,z=this.camera.position.z,inWater=isWater(x,z);
@@ -102,7 +89,7 @@ export class GameEngine {
     this.camera.position.y=this.feetY+1.75+bob;
     this.camera.rotation.set(this.pitch+(this.shake>0?(Math.random()-.5)*this.shake*.035:0),this.yaw,0);
     this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,this.blocking&&p.classId==='ranger'?55:sprint?78:72,dt*7);this.camera.updateProjectionMatrix();
-    if(this.weapon){this.weapon.position.copy(this.weaponBase);this.weapon.position.y+=bob*.5;this.weapon.rotation.z=(p.classId==='ranger'?-.18:-.12)-Math.sin(this.swing*Math.PI)*.9;this.weapon.position.z-=Math.sin(this.swing*Math.PI)*.18;}
+    if(this.weapon)animateWeapon(this.weapon,{classId:p.classId,time:this.time,bob,swing:this.swing,charge:this.bowCharge,drawing:this.drawStartedAt!==null,arrowSkill:this.arrowSkill,targeting:this.activeSpellIndex!==null});
     this.swing=Math.max(0,this.swing-dt*3.5);this.shake=Math.max(0,this.shake-dt*3);
     if(moving&&this.grounded){this.stepTimer-=dt;if(this.stepTimer<=0){this.sound(inWater?380:90,.06,'triangle',.012);this.stepTimer=sprint?.3:.48;}}
     const b=biomeAt(nx,nz);if(b!==this.lastBiome){this.lastBiome=b;this.events.biome?.(BIOMES.find(v=>v.id===b));}
@@ -112,59 +99,99 @@ export class GameEngine {
     if(inCamp&&this.time>this.combatUntil){const a=attributes(p);p.hp=Math.min(a.maxHp,p.hp+dt*a.maxHp*.06);p.mana=Math.min(a.maxMana,p.mana+dt*14);}
     this.inCamp=inCamp;this.swimming=inWater;
   }
+  get arrowSkill(){return this.player&&this.loadedArrowIndex!==null?skillsFor(this.player)[this.loadedArrowIndex]:null;}
+  get targetedSkill(){return this.player&&this.activeSpellIndex!==null?skillsFor(this.player)[this.activeSpellIndex]:null;}
+  cancelActions(clearSelection=false){this.drawStartedAt=null;this.bowCharge=0;this.blocking=false;this.activeSpellIndex=null;this.fx?.hidePreview();if(clearSelection)this.loadedArrowIndex=null;}
+  beginBow(){if(this.attackCooldown>0||this.drawStartedAt!==null||this.player.hp<=0)return;this.drawStartedAt=performance.now();this.bowCharge=0;this.sound(130,.12,'triangle',.012);}
+  releaseBow(){
+    if(this.drawStartedAt===null)return;
+    const shot=bowShot((performance.now()-this.drawStartedAt)/1000);this.drawStartedAt=null;this.bowCharge=0;
+    const skill=this.arrowSkill;let kind='basic',color=0xc7b890,power=attributes(this.player).attack;
+    if(skill){const error=skillAvailability(this.player,skill,this.cooldowns[this.loadedArrowIndex]);if(error){this.notify(error);return;}this.commitSkill(this.loadedArrowIndex);kind=skill.kind;color=skill.color;power*=skill.power;}
+    const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);
+    dir.x+=(Math.random()-.5)*shot.spread;dir.y+=(Math.random()-.5)*shot.spread;dir.normalize();
+    this.shoot({power:power*shot.multiplier,color,kind,speed:shot.speed,range:skill?.range||75,gravity:shot.gravity,direction:dir,charge:shot.charge});
+    this.loadedArrowIndex=null;this.attackCooldown=.36;this.swing=.35;this.sound(220+shot.charge*220,.13,'triangle');
+  }
   attack(){
     if(this.attackCooldown>0||this.player.hp<=0)return;
-    const p=this.player,a=attributes(p);this.attackCooldown=p.classId==='warrior'?.56:p.classId==='ranger'?.65:.72;this.swing=1;this.sound(p.classId==='mage'?440:180,.1,p.classId==='mage'?'sine':'triangle');
-    if(p.classId==='warrior'){
-      const target=this.aimTarget(4.8,.6);if(target)this.hit(target,a.attack);else this.slash(0xf2d9a2,3.5);
-    }else this.shoot({power:a.attack,color:p.classId==='mage'?0xb6e7e4:0xe9d7a0,kind:'basic',speed:p.classId==='ranger'?57:39,range:70});
+    if(this.player.classId==='ranger'){this.beginBow();return;}
+    if(this.player.classId==='mage'){
+      if(this.activeSpellIndex!==null){this.castTargetedSpell();return;}
+      const target=this.groundTarget(28);if(!target.valid){this.notify('시선을 낮춰 지면을 겨누세요.');return;}
+      this.attackCooldown=.72;this.swing=1;this.createField(target.point,{kind:'arcanePulse',radius:2.2,power:1,color:0x9bc6e6,delay:.12,duration:0});this.sound(280,.16);return;
+    }
+    this.attackCooldown=.56;this.swing=1;this.sound(180,.1,'triangle');const target=this.aimTarget(4.8,.6);
+    if(target)this.hit(target,attributes(this.player).attack);this.slash(0xf2d9a2,3.5);
   }
   aimTarget(range=55,dot=.97){
     const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);let best=null,score=Infinity;
     for(const m of this.world.monsters){if(!m.alive)continue;const center=m.group.position.clone().add(new THREE.Vector3(0,(m.def.shape==='golem'?1.9:1.1)*m.def.scale,0));const v=center.sub(this.camera.position),d=v.length();if(d<range&&v.normalize().dot(dir)>dot&&d<score){best=m;score=d;}}
     return best;
   }
+  groundTarget(range){
+    const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);
+    for(let d=.5;d<=range;d+=.5){const point=this.camera.position.clone().addScaledVector(dir,d);if(point.y<=heightAt(point.x,point.z)+.08){point.y=heightAt(point.x,point.z);return {point,valid:Math.abs(point.x)<=310&&Math.abs(point.z)<=310&&!isWater(point.x,point.z)};}}
+    const point=this.camera.position.clone().addScaledVector(dir,range);point.y=heightAt(point.x,point.z);return {point,valid:false};
+  }
+  commitSkill(index){
+    const s=skillsFor(this.player)[index];this.player.mana-=s.cost;this.cooldowns[index]=s.cooldown;this.swing=1;this.events.skill?.(index);this.sound(480+index*80,.2,'sine',.035);return s;
+  }
   skill(index){
-    const p=this.player,s=skillsFor(p)[index];if(!s||s.locked||p.level<s.level){this.notify('아직 해금되지 않은 스킬입니다.');return;}
-    if(this.cooldowns[index]>0){this.notify('스킬을 준비하고 있습니다.');return;}if(p.mana<s.cost){this.notify('마나가 부족합니다.');return;}
-    p.mana-=s.cost;this.cooldowns[index]=s.cooldown;this.swing=1;this.sound(480+index*100,.24,'sine',.045);const a=attributes(p);
-    this.notify(s.name);this.events.skill?.(index);
-    if(s.kind==='guard'||s.kind==='sanctuary') {p.buffs.guard=12;if(s.kind==='sanctuary')p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.5);this.burst(this.camera.position,s.color,18);}
-    else if(s.kind==='heal'){p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.4);this.burst(this.camera.position,s.color,18);}
-    else if(s.kind==='restore'){p.mana=Math.min(a.maxMana,p.mana+a.maxMana*.45);p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.2);this.burst(this.camera.position,s.color,18);}
-    else if(s.kind==='rage'||s.kind==='blessing'){p.buffs.rage=15;p.hp=Math.min(a.maxHp,p.hp+a.maxHp*(s.kind==='blessing'?1:.15));this.burst(this.camera.position,s.color,20);}
-    else if(['fire','frost','poison'].includes(s.kind))this.shoot({power:a.attack*s.power,color:s.color,kind:s.kind,speed:34,range:s.range});
-    else if(s.kind==='pierce'){
-      const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);
-      for(const m of this.world.monsters)if(m.alive){const v=m.group.position.clone().add(new THREE.Vector3(0,1.2*m.def.scale,0)).sub(this.camera.position),t=v.dot(dir);if(t>0&&t<s.range&&v.clone().addScaledVector(dir,-t).length()<2.2*m.def.scale)this.hit(m,a.attack*s.power,s.color);}
-      this.trail(this.camera.position,this.camera.position.clone().addScaledVector(dir,s.range),s.color);
-    }else{
-      if(s.kind==='dash'){
-        // Use the same terrain and obstacle constraints as walking during a short dash.
-        for(let i=0;i<8;i++){const nx=this.camera.position.x-Math.sin(this.yaw)*.7,nz=this.camera.position.z-Math.cos(this.yaw)*.7;if(Math.abs(nx)>310||Math.abs(nz)>310||heightAt(nx,nz)-this.feetY>.8||this.world.colliders.some(c=>Math.hypot(nx-c.x,nz-c.z)<c.r+.5))break;this.camera.position.x=nx;this.camera.position.z=nz;this.feetY=Math.max(heightAt(nx,nz),isWater(nx,nz)?WATER_LEVEL-.7:-Infinity);this.camera.position.y=this.feetY+1.75;}
-      }
+    const p=this.player,s=skillsFor(p)[index],error=skillAvailability(p,s,this.cooldowns[index]);if(error){this.notify(error);return;}
+    if(isArrowSkill(p,s)){this.loadedArrowIndex=this.loadedArrowIndex===index?null:index;this.notify(this.loadedArrowIndex===null?'일반 화살 장전':`${s.name} 장전 · 좌클릭을 누르고 당긴 뒤 놓아 발사`);return;}
+    if(s.targeted){this.activeSpellIndex=this.activeSpellIndex===index?null:index;this.notify(this.activeSpellIndex===null?'시전 취소':`${s.name} · 지면을 겨눈 뒤 좌클릭 · 우클릭 취소`);if(this.activeSpellIndex===null)this.fx.hidePreview();return;}
+    this.commitSkill(index);const a=attributes(p);this.notify(s.name);
+    if(s.kind==='guard'||s.kind==='sanctuary'){p.buffs.guard=12;if(s.kind==='sanctuary')p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.5);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),4,'sanctuary',s.color,0,1.5);}
+    else if(s.kind==='heal'){p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.4);this.burst(this.camera.position,s.color,24);}
+    else if(s.kind==='restore'){p.mana=Math.min(a.maxMana,p.mana+a.maxMana*.45);p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.2);this.burst(this.camera.position,s.color,24);}
+    else if(s.kind==='rage'||s.kind==='blessing'){p.buffs.rage=15;p.hp=Math.min(a.maxHp,p.hp+a.maxHp*(s.kind==='blessing'?1:.15));this.burst(this.camera.position,s.color,24);}
+    else{
+      if(s.kind==='dash')for(let i=0;i<8;i++){const nx=this.camera.position.x-Math.sin(this.yaw)*.7,nz=this.camera.position.z-Math.cos(this.yaw)*.7;if(Math.abs(nx)>310||Math.abs(nz)>310||heightAt(nx,nz)-this.feetY>.8||this.world.colliders.some(c=>Math.hypot(nx-c.x,nz-c.z)<c.r+.5))break;this.camera.position.x=nx;this.camera.position.z=nz;this.feetY=Math.max(heightAt(nx,nz),isWater(nx,nz)?WATER_LEVEL-.7:-Infinity);this.camera.position.y=this.feetY+1.75;}
       for(const m of this.world.monsters)if(m.alive&&this.distanceTo(m)<s.range){this.hit(m,a.attack*s.power,s.color);if(s.kind==='freeze')m.freeze=4;}
-      this.slash(s.color,s.range);this.burst(new THREE.Vector3(this.camera.position.x,this.feetY+.4,this.camera.position.z),s.color,25);
+      this.slash(s.color,s.range);
     }
   }
+  castTargetedSpell(){
+    const index=this.activeSpellIndex,s=this.targetedSkill;if(!s)return;
+    const error=skillAvailability(this.player,s,this.cooldowns[index]);if(error){this.notify(error);return;}
+    const target=this.groundTarget(s.range);if(!target.valid){this.notify('시전 범위 안의 마른 지면을 겨누세요.');return;}
+    this.commitSkill(index);this.createField(target.point,s);this.notify(s.name);this.activeSpellIndex=null;this.fx.hidePreview();
+  }
+  createField(point,skill){
+    const ticks=skill.duration>0?Math.max(1,Math.round(skill.duration/.5)):1;
+    this.fields.push({point:point.clone(),skill,power:attributes(this.player).attack*skill.power/ticks,ticks,timer:skill.delay||0});
+    this.fx.spell(point,skill.radius,skill.kind,skill.color,skill.delay||0,skill.duration||0);
+  }
+  updateCombat(dt){
+    if(this.drawStartedAt!==null)this.bowCharge=bowShot((performance.now()-this.drawStartedAt)/1000).charge;
+    const s=this.targetedSkill;if(s){const target=this.groundTarget(s.range);this.spellTarget=target;this.fx.setPreview(target.point,s.radius,s.color,target.valid&&!skillAvailability(this.player,s,this.cooldowns[this.activeSpellIndex]));}else{this.spellTarget=null;this.fx.hidePreview();}
+    for(let i=this.fields.length-1;i>=0;i--){const f=this.fields[i];f.timer-=dt;if(f.timer<=0){
+      for(const m of this.world.monsters)if(m.alive&&inSpellArea({x:m.x,z:m.z,y:m.group.position.y},f.point,f.skill.radius,7*m.def.scale)){this.hit(m,f.power,f.skill.color);if(f.skill.kind==='frostZone')m.freeze=4;}
+      f.ticks--;f.timer+=.5;if(f.ticks<=0)this.fields.splice(i,1);
+    }}
+  }
   distanceTo(m){return Math.hypot(m.x-this.camera.position.x,m.z-this.camera.position.z,m.group.position.y-this.feetY);}
-  shoot({power,color,kind,speed,range}) {
-    const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);const start=this.camera.position.clone().addScaledVector(dir,.8);
-    const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(kind==='fire'?.24:.1,0),new THREE.MeshBasicMaterial({color}));mesh.position.copy(start);this.scene.add(mesh);
-    this.projectiles.push({mesh,velocity:dir.multiplyScalar(speed),power,color,kind,life:range/speed,travel:0});
+  shoot({power,color,kind,speed,range,gravity=9.81,direction=null,charge=0}){
+    const dir=direction||new THREE.Vector3();if(!direction)this.camera.getWorldDirection(dir);
+    const mesh=makeArrow(color,kind!=='basic');mesh.position.copy(this.camera.position).addScaledVector(dir,.8);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),dir.clone().normalize());this.scene.add(mesh);
+    this.projectiles.push({mesh,velocity:dir.clone().multiplyScalar(speed),power,color,kind,gravity,range,charge,travel:0,life:range/Math.max(1,speed)+5,hitIds:new Set(),piercing:kind==='pierce'||kind==='stormArrow'});
   }
   updateProjectiles(dt){
-    const line=new THREE.Line3();const near=new THREE.Vector3();
+    const line=new THREE.Line3(),near=new THREE.Vector3();
     for(let i=this.projectiles.length-1;i>=0;i--){
-      const p=this.projectiles[i],old=p.mesh.position.clone();p.life-=dt;if(p.kind==='basic'&&this.player.classId==='ranger')p.velocity.y-=3*dt;
-      p.mesh.position.addScaledVector(p.velocity,dt);line.set(old,p.mesh.position);let hit=null;
-      for(const m of this.world.monsters){if(!m.alive)continue;const c=m.group.position.clone().add(new THREE.Vector3(0,(m.def.shape==='golem'?1.8:1.1)*m.def.scale,0));line.closestPointToPoint(c,true,near);if(near.distanceTo(c)<1.05*m.def.scale){hit=m;break;}}
-      const pos=p.mesh.position,ground=pos.y<heightAt(pos.x,pos.z);
-      if(hit||ground||p.life<=0){
-        if(p.kind==='fire'&&(hit||ground)){for(const m of this.world.monsters)if(m.alive&&m.group.position.distanceTo(pos)<7)this.hit(m,p.power,p.color);this.burst(pos,p.color,24);this.slashAt(pos,p.color,7);}
-        else if(hit){this.hit(hit,p.power,p.color);if(p.kind==='frost')hit.slow=6;if(p.kind==='poison'){hit.poison=8;hit.poisonPower=attributes(this.player).attack*.45;hit.poisonTick=1;}}
-        this.removeObject(p.mesh);this.projectiles.splice(i,1);
+      const p=this.projectiles[i],old=p.mesh.position.clone();p.life-=dt;p.velocity.y-=p.gravity*dt;p.mesh.position.addScaledVector(p.velocity,dt);p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),p.velocity.clone().normalize());
+      p.travel+=old.distanceTo(p.mesh.position);line.set(old,p.mesh.position);
+      let groundT=Infinity;for(let j=1;j<=8;j++){const q=line.at(j/8,new THREE.Vector3());if(q.y<=heightAt(q.x,q.z)+.025){groundT=j/8;break;}}
+      const hits=[];for(const m of this.world.monsters){if(!m.alive||p.hitIds.has(m.id))continue;const c=m.group.position.clone().add(new THREE.Vector3(0,(m.def.shape==='golem'?1.8:1.1)*m.def.scale,0));line.closestPointToPoint(c,true,near);const t=line.closestPointToPointParameter(c,true);if(t<groundT&&near.distanceTo(c)<1.05*m.def.scale)hits.push({m,t});}
+      hits.sort((a,b)=>a.t-b.t);let stopped=false;
+      for(const {m,t}of hits){if(!m.alive)continue;p.hitIds.add(m.id);this.hit(m,p.power,p.color);if(p.kind==='frost')m.slow=6;if(p.kind==='poison'){m.poison=8;m.poisonPower=attributes(this.player).attack*.45;m.poisonTick=1;}
+        if(p.kind==='rainArrow'){const point=line.at(t,new THREE.Vector3());point.y=heightAt(point.x,point.z);for(const other of this.world.monsters)if(other!==m&&other.alive&&inSpellArea({x:other.x,z:other.z,y:other.group.position.y},point,8,8))this.hit(other,p.power,p.color);this.fx.spell(point,8,'arrowRain',p.color,0,1.2);}
+        if(!p.piercing){stopped=true;break;}
       }
+      if(groundT!==Infinity&&p.kind==='rainArrow'&&!stopped){const point=line.at(groundT,new THREE.Vector3());point.y=heightAt(point.x,point.z);for(const m of this.world.monsters)if(m.alive&&inSpellArea({x:m.x,z:m.z,y:m.group.position.y},point,8,8))this.hit(m,p.power,p.color);this.fx.spell(point,8,'arrowRain',p.color,0,1.2);}
+      if(p.kind!=='basic')this.fx.trail(old,p.mesh.position,p.color);
+      if(stopped||groundT!==Infinity||p.life<=0||p.travel>=p.range){this.removeObject(p.mesh);this.projectiles.splice(i,1);}
     }
   }
   hit(m,raw,color=0xf5e8c5){
@@ -203,7 +230,7 @@ export class GameEngine {
         m.group.rotation.y=Math.atan2(-(tx-m.x),-(tz-m.z));
       }
       const bob=m.def.shape==='slime'?Math.abs(Math.sin(this.time*3+m.homeX))*.25:m.def.shape==='spirit'?Math.sin(this.time*2+m.homeX)*.35:dist>1?Math.abs(Math.sin(this.time*5))* .06:0;
-      m.group.position.set(m.x,heightAt(m.x,m.z)+bob,m.z);const scale=m.def.scale*(1+(m.hit>0?Math.sin(m.hit*30)*.035:0));m.group.scale.setScalar(scale);
+      m.group.position.set(m.x,heightAt(m.x,m.z)+bob,m.z);if(m.group.userData.legs)m.group.userData.legs.forEach((leg,i)=>{leg.rotation.x=dist>1?Math.sin(this.time*(m.aggro?10:5)+i*Math.PI*.8)*.38:0;});const scale=m.def.scale*(1+(m.hit>0?Math.sin(m.hit*30)*.035:0));m.group.scale.setScalar(scale);
       if(m.aggro&&d<m.def.range&&Math.abs(this.feetY-m.group.position.y)<4*m.def.scale&&m.attackTimer<=0&&m.freeze<=0){
         m.attackTimer=m.def.boss?2.1:1.6;this.hurt(m.def.attack,m.def.name);this.burst(this.camera.position.clone().add(new THREE.Vector3(0,-.5,-.3)),0xe99b7c,4);
       }
@@ -227,24 +254,21 @@ export class GameEngine {
     }
     this.checkQuests();this.events.change?.();
   }
-  burst(pos,color,count=12){
-    const geometry=new THREE.IcosahedronGeometry(.065,0),material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:1});
-    const g=new THREE.Group();g.position.copy(pos);const velocities=[];for(let i=0;i<count;i++){const m=new THREE.Mesh(geometry,material);g.add(m);velocities.push(new THREE.Vector3((Math.random()-.5)*7,Math.random()*5,(Math.random()-.5)*7));}this.scene.add(g);this.effects.push({group:g,velocities,life:.65,max:.65,material,geometry});
-  }
-  slash(color,radius){this.slashAt(new THREE.Vector3(this.camera.position.x,this.feetY+.3,this.camera.position.z),color,radius);}
-  slashAt(pos,color,radius){const geo=new THREE.RingGeometry(radius*.92,radius,48),material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.65,side:THREE.DoubleSide});const group=new THREE.Mesh(geo,material);group.rotation.x=-Math.PI/2;group.position.copy(pos);this.scene.add(group);this.effects.push({group,life:.45,max:.45,material,geometry:geo});}
-  trail(start,end,color){const geo=new THREE.BufferGeometry().setFromPoints([start.clone(),end]),material=new THREE.LineBasicMaterial({color,transparent:true,opacity:.9}),group=new THREE.Line(geo,material);this.scene.add(group);this.effects.push({group,life:.3,max:.3,material,geometry:geo});}
-  removeObject(object){this.scene.remove(object);object.geometry?.dispose();object.material?.dispose();}
-  updateEffects(dt){for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;e.material.opacity=Math.max(0,e.life/e.max);if(e.velocities)e.group.children.forEach((m,j)=>{m.position.addScaledVector(e.velocities[j],dt);e.velocities[j].y-=8*dt;});else e.group.scale.multiplyScalar(1+dt*.7);if(e.life<=0){this.scene.remove(e.group);e.geometry.dispose();e.material.dispose();this.effects.splice(i,1);}}}
-  setQuality(quality){this.renderer.setPixelRatio(quality==='low'?1:Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=quality!=='low';this.renderer.setSize(innerWidth,innerHeight);}
+  burst(pos,color,count=18){this.fx.particles(pos,color,count);}
+  slash(color,radius){this.fx.ring(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),color,radius);}
+  slashAt(pos,color,radius){this.fx.ring(pos,color,radius);}
+  trail(start,end,color){this.fx.trail(start,end,color);}
+  removeObject(object){this.scene.remove(object);object.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});}
+  updateEffects(dt){this.fx.update(dt);}
+  setQuality(quality){this.quality=quality;this.renderer.setPixelRatio(quality==='low'?.8:Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=quality!=='low';this.renderer.setSize(innerWidth,innerHeight);}
   animate(){
     requestAnimationFrame(()=>this.animate());const realDelta=this.clock.getDelta(),dt=Math.min(realDelta,.045);this.time+=dt;this.frameCount++;this.frameTime+=realDelta;if(this.frameTime>1){this.fps=Math.round(this.frameCount/this.frameTime);this.frameTime=0;this.frameCount=0;}
     if(this.active&&!this.paused&&this.locked&&this.player.hp>0){
       this.player.playtime+=dt;this.attackCooldown=Math.max(0,this.attackCooldown-dt);this.cooldowns=this.cooldowns.map(v=>Math.max(0,v-dt));
       for(const key of Object.keys(this.player.buffs))this.player.buffs[key]=Math.max(0,this.player.buffs[key]-dt);
       const a=attributes(this.player);this.player.mana=Math.min(a.maxMana,this.player.mana+dt*3.5);if(this.time>this.combatUntil)this.player.hp=Math.min(a.maxHp,this.player.hp+dt*1.1);
-      this.movement(dt);if(this.player.hp>0){this.updateMonsters(dt);this.updateProjectiles(dt);}if(this.time-this.lastSave>15){this.persist();this.lastSave=this.time;}
+      this.movement(dt);this.updateCombat(dt);if(this.player.hp>0){this.updateMonsters(dt);this.updateProjectiles(dt);}if(this.time-this.lastSave>15){this.persist();this.lastSave=this.time;}
     }
-    this.world.update(this.time,dt);this.updateEffects(dt);this.renderer.render(this.scene,this.camera);this.events.frame?.(dt);
+    this.world.update(this.time,dt,this.camera.position,this.quality==='low');this.updateEffects(this.active&&this.paused?0:dt);this.renderer.render(this.scene,this.camera);this.events.frame?.(realDelta);
   }
 }

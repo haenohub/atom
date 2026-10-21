@@ -8,10 +8,10 @@ export function heightAt(x,z) {
     + 8*bump(x,z,20,-160,100,57);
 }
 export function biomeAt(x,z) {
-  if (z < -146) return x < 15 ? 'snow' : 'volcano';
-  if (x < -65 && z < 65) return 'lake';
-  if (x > 70 && z < 65) return 'highland';
-  return 'forest';
+  const regions=[['snow',-108,-215,155,120],['volcano',163,-220,150,126],['lake',-130,-32,108,105],['highland',135,-35,115,108]];
+  let result='forest',best=1;
+  for(const [id,cx,cz,rx,rz]of regions){const d=Math.hypot((x-cx)/rx,(z-cz)/rz)+Math.sin(x*.047+z*.021)*.045;if(d<best){best=d;result=id;}}
+  return result;
 }
 export const isWater = (x,z) => Math.hypot(x+130,z+32)<69 && heightAt(x,z) < WATER_LEVEL;
 export function seededRandom(seed = 82537) { let s = seed >>> 0; return () => { s = (Math.imul(1664525,s)+1013904223)>>>0; return s / 4294967296; }; }

@@ -20,7 +20,7 @@ def passed(name):
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium'), headless=True,
         args=['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'])
-    page = browser.new_page(viewport={'width': 1440, 'height': 900}, device_scale_factor=1)
+    page = browser.new_page(viewport={'width': 1000, 'height': 700}, device_scale_factor=1)
     page.on('pageerror', lambda e: (errors.append(str(e)), print('BROWSER ERROR', str(e), flush=True)))
     page.goto(URL, wait_until='networkidle')
     page.wait_for_selector('#welcome:not(.hidden)', timeout=60000)
@@ -65,14 +65,19 @@ with sync_playwright() as p:
     page.evaluate("""async () => {
       const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');
       const x=0,z=-14;e.camera.position.set(x,heightAt(x,z)+1.75,z);e.feetY=heightAt(x,z);e.fallPeak=e.feetY;e.vy=0;e.yaw=0;
-      const m=e.world.monsters.find(m=>m.type==='slime');m.x=x;m.z=z-5;m.homeX=x;m.homeZ=z-5;m.hp=42;m.alive=true;m.group.visible=true;m.group.position.set(x,heightAt(x,z-5),z-5);m.freeze=100;
-      e.pitch=Math.atan2(m.group.position.y+1.1-e.camera.position.y,5);e.cooldowns[0]=0;e.player.mana=100;window.testMonster=m;window.testKills=e.player.stats.kills;
+      const m=e.world.monsters.find(m=>m.type==='slime');m.x=x;m.z=z-5;m.homeX=x;m.homeZ=z-5;m.hp=20;m.alive=true;m.group.visible=true;m.group.position.set(x,heightAt(x,z-5),z-5);m.freeze=100;
+      e.pitch=Math.atan2(m.group.position.y-e.camera.position.y,5);e.camera.rotation.set(e.pitch,e.yaw,0);e.camera.updateMatrixWorld();e.cooldowns[0]=0;e.player.mana=100;window.testMonster=m;window.testKills=e.player.stats.kills;
     }""")
     page.keyboard.press('Digit1')
-    page.wait_for_function('!window.testMonster.alive', timeout=30000)
+    page.wait_for_function('window.__AETHERWILD__.engine.activeSpellIndex===0')
+    assert page.evaluate('window.__AETHERWILD__.engine.player.mana') >= 100
+    page.mouse.down()
+    page.mouse.up()
+    page.wait_for_function('!window.testMonster.alive', timeout=60000)
     assert page.evaluate('window.__AETHERWILD__.engine.player.stats.kills > window.testKills')
     assert page.evaluate('window.__AETHERWILD__.engine.player.inventory.slime > 0')
-    passed('actual fireball projectile kills creature and grants XP and rolled loot')
+    assert page.evaluate('window.__AETHERWILD__.engine.projectiles.length') == 0
+    passed('confirmed ground fire area kills creature, grants XP and loot without projectiles')
     page.evaluate('window.__AETHERWILD__.engine.player.mana=0;window.__AETHERWILD__.engine.cooldowns[0]=0;')
     page.keyboard.press('Digit1')
     page.wait_for_selector('.toast:text("마나가 부족합니다.")')

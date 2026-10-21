@@ -19,10 +19,11 @@ with sync_playwright() as p:
           api.startGame(api.createPlayer(classId));
           const x=0,z=-14;e.camera.position.set(x,heightAt(x,z)+1.75,z);e.feetY=heightAt(x,z);e.fallPeak=e.feetY;e.vy=0;e.yaw=0;
           const m=e.world.monsters.find(m=>m.type==='slime');m.x=x;m.z=z-3;m.homeX=x;m.homeZ=z-3;m.hp=1;m.alive=true;m.group.visible=true;m.group.position.set(x,heightAt(x,z-3),z-3);m.freeze=100;
-          e.pitch=Math.atan2(m.group.position.y+1.1-e.camera.position.y,3);e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();e.attackCooldown=0;window.target=m;
+          e.pitch=Math.atan2(m.group.position.y+(classId==='mage'?0:1.1)-e.camera.position.y,3);e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();e.attackCooldown=0;window.target=m;
         }""", class_id)
         page.wait_for_function('window.__AETHERWILD__.engine.locked')
         page.mouse.down()
+        if class_id == 'ranger': page.wait_for_function('window.__AETHERWILD__.engine.bowCharge>.95', timeout=15000)
         page.mouse.up()
         page.wait_for_function('!window.target.alive',timeout=30000)
         print(f'PASS {class_id} actual mouse basic attack hits and kills',flush=True)
@@ -33,7 +34,14 @@ with sync_playwright() as p:
       const e=window.__AETHERWILD__.engine;e.paused=true;const results=[];
       for(const classId of Object.keys(CLASSES))for(const branch of CLASSES[classId].branches){
         const p=createPlayer(classId);p.level=20;advance(p,branch,true);e.player=p;e.cooldowns.fill(0);
-        for(const i of [3,4]){p.mana=999;e.cooldowns[i]=0;e.skill(i);if(!(e.cooldowns[i]>0))throw Error(branch+' did not cast');}
+        for(const i of [3,4]){
+          p.mana=999;e.cooldowns[i]=0;e.activeSpellIndex=null;e.loadedArrowIndex=null;
+          e.camera.position.set(0,heightAt(0,44)+1.75,44);e.feetY=heightAt(0,44);e.camera.rotation.set(-.3,0,0);e.camera.updateMatrixWorld();
+          e.skill(i);
+          if(classId==='ranger'){if(e.loadedArrowIndex!==i||p.mana!==999)throw Error('arrow selection spent resources');e.attackCooldown=0;e.beginBow();e.drawStartedAt=performance.now()-1300;e.releaseBow();}
+          else if(e.activeSpellIndex!==null){if(p.mana!==999)throw Error('target selection spent resources');e.castTargetedSpell();}
+          if(!(e.cooldowns[i]>0))throw Error(branch+' did not cast');
+        }
         if(!Number.isFinite(p.hp)||!Number.isFinite(p.mana))throw Error(branch+' invalid stats');
         results.push(branch+' advanced skills');
       }

@@ -22,23 +22,23 @@ export const SKILLS = {
     { name: '강철 피부', level: 7, cost: 25, cooldown: 22, duration: 12, kind: 'guard', color: 0xd6e3f2, description: '12초 동안 받는 피해 60% 감소.' },
   ],
   ranger: [
-    { name: '관통화살', level: 1, cost: 12, cooldown: 4, power: 2.5, range: 45, kind: 'pierce', color: 0xbee4a3, description: '일직선상의 모든 적에게 공격력 250% 피해.' },
-    { name: '서리화살', level: 4, cost: 20, cooldown: 9, power: 2.2, range: 45, kind: 'frost', color: 0x9eeaff, description: '220% 피해. 적 이동 속도를 6초 동안 65% 낮춤.' },
+    { icon: 'pierce', delivery: 'arrow', name: '관통화살', level: 1, cost: 12, cooldown: 4, power: 2.5, range: 45, kind: 'pierce', color: 0xbee4a3, description: '다음 화살을 관통화살로 교체. 일직선상의 적에게 250% 피해. 발사할 때 마나 소모.' },
+    { icon: 'frostArrow', delivery: 'arrow', name: '서리화살', level: 4, cost: 20, cooldown: 9, power: 2.2, range: 45, kind: 'frost', color: 0x9eeaff, description: '다음 화살을 서리화살로 교체. 220% 피해와 6초 둔화. 발사할 때 마나 소모.' },
     { name: '치유의 바람', level: 7, cost: 30, cooldown: 20, kind: 'heal', color: 0xaaffbf, description: '최대 체력의 40% 회복.' },
   ],
   mage: [
-    { name: '화염구', level: 1, cost: 18, cooldown: 4, power: 2.8, range: 40, kind: 'fire', color: 0xff995b, description: '폭발하는 구체. 반경 7m에 공격력 280% 피해.' },
-    { name: '얼음 파동', level: 4, cost: 25, cooldown: 9, power: 1.8, range: 12, kind: 'freeze', color: 0xa8e5ff, description: '주변 12m의 적에게 180% 피해, 4초 빙결.' },
+    { name: '불꽃의 장', icon: 'fireZone', targeted: true, level: 1, cost: 18, cooldown: 4, power: 2.8, range: 40, radius: 7, delay: .4, duration: 3, kind: 'fireZone', color: 0xff995b, description: '지면 지정. 반경 7m에 3초 동안 총 280% 화염 피해. 좌클릭으로 시전.' },
+    { name: '서리 결계', icon: 'frostZone', targeted: true, level: 4, cost: 25, cooldown: 9, power: 1.8, range: 35, radius: 9, delay: .25, duration: 0, kind: 'frostZone', color: 0xa8e5ff, description: '지면 지정. 반경 9m에 180% 피해, 4초 빙결. 좌클릭으로 시전.' },
     { name: '비전 회복', level: 7, cost: 0, cooldown: 25, kind: 'restore', color: 0xcab6ff, description: '최대 마나의 45%와 체력의 20% 회복.' },
   ],
 };
 export const BRANCH_SKILLS = {
   knight: [ { name: '성역', kind: 'sanctuary', cost: 30, cooldown: 24, color: 0xffeeae, description: '체력 50% 회복, 12초 피해 60% 감소.' }, { name: '심판', kind: 'aoe', power: 5.5, range: 14, cost: 40, cooldown: 18, color: 0xffdd84, description: '반경 14m에 550% 신성 피해.' } ],
   berserker: [ { name: '피의 격노', kind: 'rage', cost: 25, cooldown: 25, color: 0xff7777, description: '15초 공격력 60% 증가, 체력 15% 회복.' }, { name: '대지 분쇄', kind: 'freeze', power: 6, range: 15, cost: 40, cooldown: 18, color: 0xe9b172, description: '반경 15m에 600% 피해, 4초 기절.' } ],
-  warden: [ { name: '화살비', kind: 'aoe', power: 4.5, range: 19, cost: 30, cooldown: 13, color: 0xc4e8a0, description: '주변 19m의 적에게 450% 피해.' }, { name: '폭풍 사격', kind: 'pierce', power: 7.5, range: 60, cost: 40, cooldown: 16, color: 0xd9ffbc, description: '전방 60m 관통, 750% 피해.' } ],
-  shadow: [ { name: '독화살', kind: 'poison', power: 2.8, range: 50, cost: 25, cooldown: 10, color: 0xb5ff79, description: '280% 피해와 8초 동안 매초 공격력 45% 맹독 피해.' }, { name: '암살 표식', kind: 'pierce', power: 9, range: 45, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '전방의 적에게 900% 관통 피해.' } ],
-  archmage: [ { name: '운석', kind: 'fire', power: 5.5, range: 50, cost: 38, cooldown: 13, color: 0xff885a, description: '충돌점 반경 7m에 550% 피해.' }, { name: '비전 폭풍', kind: 'aoe', power: 7, range: 22, cost: 55, cooldown: 20, color: 0xcab1ff, description: '반경 22m에 700% 비전 피해.' } ],
-  elementalist: [ { name: '번개 사슬', kind: 'aoe', power: 4.8, range: 23, cost: 32, cooldown: 12, color: 0xa9dfff, description: '반경 23m 모든 적에게 480% 번개 피해.' }, { name: '정령의 축복', kind: 'blessing', cost: 40, cooldown: 30, color: 0xaaffd7, description: '체력 완전 회복, 15초 공격력 60% 증가.' } ],
+  warden: [ { name: '화살비', icon: 'arrowRain', delivery: 'arrow', kind: 'rainArrow', power: 4.5, range: 55, radius: 8, cost: 30, cooldown: 13, color: 0xc4e8a0, description: '다음 화살이 적중한 지점 반경 8m에 화살비, 450% 피해.' }, { name: '폭풍 사격', icon: 'stormArrow', delivery: 'arrow', kind: 'stormArrow', power: 7.5, range: 60, cost: 40, cooldown: 16, color: 0xd9ffbc, description: '전방 60m 관통, 750% 피해.' } ],
+  shadow: [ { name: '독화살', icon: 'poisonArrow', delivery: 'arrow', kind: 'poison', power: 2.8, range: 50, cost: 25, cooldown: 10, color: 0xb5ff79, description: '280% 피해와 8초 동안 매초 공격력 45% 맹독 피해.' }, { name: '암살 표식', icon: 'shadowArrow', delivery: 'arrow', kind: 'pierce', power: 9, range: 45, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '전방의 적에게 900% 관통 피해.' } ],
+  archmage: [ { name: '운석 낙하', icon: 'meteor', targeted: true, kind: 'meteorZone', power: 5.5, range: 50, radius: 10, delay: 1.1, duration: 0, cost: 38, cooldown: 13, color: 0xff885a, description: '지면 지정. 1.1초 후 반경 10m에 550% 피해. 좌클릭으로 시전.' }, { name: '비전 폭풍', icon: 'arcaneZone', targeted: true, kind: 'arcaneZone', power: 7, range: 45, radius: 13, delay: .5, duration: 3, cost: 55, cooldown: 20, color: 0xcab1ff, description: '지면 지정. 반경 13m에 3초 동안 총 700% 비전 피해.' } ],
+  elementalist: [ { name: '뇌우의 장', icon: 'lightning', targeted: true, kind: 'lightningZone', power: 4.8, range: 45, radius: 11, delay: .45, duration: 0, cost: 32, cooldown: 12, color: 0xa9dfff, description: '지면 지정. 반경 11m 모든 적에게 480% 번개 피해.' }, { name: '정령의 축복', kind: 'blessing', cost: 40, cooldown: 30, color: 0xaaffd7, description: '체력 완전 회복, 15초 공격력 60% 증가.' } ],
 };
 export function skillsFor(player) {
   const base = SKILLS[player.classId];
