@@ -1,3 +1,4 @@
+import { validSkyPosition } from './sky-layout.js';
 import { CLASSES, BRANCHES, ITEMS, RECIPES, MAX_LEVEL, MONSTERS, QUESTS, SAVE_KEY, CAMP } from './data.js';
 import { EQUIPMENT_SLOTS, STAT_NAMES, CLASS_STATS, MAIN_STAT, starterGear } from './equipment-data.js';
 import { NPC_QUESTS } from './quest-data.js';
@@ -40,10 +41,13 @@ export function gainXp(p, amount) {
   if (levels) { const a = attributes(p); p.hp = a.maxHp; p.mana = a.maxMana; }
   return levels;
 }
+export const TEST_XP_MULTIPLIER=5, TEST_EQUIPMENT_MULTIPLIER=5;
+export const effectiveDropChance=(id,chance)=>Math.min(1,chance*(['weapon','armor'].includes(ITEMS[id]?.type)?TEST_EQUIPMENT_MULTIPLIER:1));
+export function awardXp(p,baseAmount){return gainXp(p,baseAmount*TEST_XP_MULTIPLIER);}
 export function rollLoot(monsterId, rng = Math.random) {
   const result = {};
   for (const [id, chance, min, max] of MONSTERS[monsterId].drops) {
-    if (rng() < chance) result[id] = min + Math.floor(Math.min(.99999999, Math.max(0, rng())) * (max - min + 1));
+    if (rng() < effectiveDropChance(id,chance)) result[id] = min + Math.floor(Math.min(.99999999, Math.max(0, rng())) * (max - min + 1));
   }
   return result;
 }
@@ -89,7 +93,7 @@ export function damagePlayer(p, raw) {
 export function claimQuests(p) {
   const rewards = [];
   for (const q of QUESTS) if (!p.claimed.includes(q.id) && p.stats[q.stat] >= q.target) {
-    p.claimed.push(q.id); p.gold += q.gold; const levels = gainXp(p,q.xp); rewards.push({ ...q, levels });
+    p.claimed.push(q.id); p.gold += q.gold; const levels = awardXp(p,q.xp); rewards.push({ ...q, xp:q.xp*TEST_XP_MULTIPLIER, levels });
   }
   return rewards;
 }
@@ -116,6 +120,7 @@ export function loadPlayer(storage = globalThis.localStorage) {
     p.claimed = Array.isArray(raw.claimed) ? [...new Set(raw.claimed.filter(id => QUESTS.some(q => q.id === id)))] : [];
     p.opened = Array.isArray(raw.opened) ? [...new Set(raw.opened.filter(id => typeof id === 'string' && /^chest-\d+$/.test(id)))].slice(0,100) : [];
     if (raw.position && Number.isFinite(raw.position.x) && Number.isFinite(raw.position.z)) p.position = { x: finite(raw.position.x,-310,310,0), z: finite(raw.position.z,-310,310,44) };
+    if(raw.position&&validSkyPosition(raw.position))p.position.y=raw.position.y;
     let budget=(p.level-1)*3;
     for(const key of Object.keys(STAT_NAMES)){const points=Math.floor(finite(raw.allocations?.[key],0,budget,0));p.allocations[key]=points;budget-=points;}
     p.perspective=raw.perspective==='third'?'third':'first';

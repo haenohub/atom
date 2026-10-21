@@ -1,7 +1,8 @@
+import { vfxSprite } from './vfx-textures.js';
 import * as THREE from 'three';
 import { surfaceMaterial, surfaceMap } from './surfaces.js';
 import { materials, weatheredRock } from './art.js';
-import { heightAt } from './terrain.js';
+import { surfaceAt } from './terrain.js';
 const TAU=Math.PI*2;
 const flameVertex=`uniform float uTime;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;p.x+=sin(uTime*4.+uv.y*5.+uv.x*6.283)*uv.y*uv.y*.28;p.z+=cos(uTime*3.+uv.y*4.)*uv.y*uv.y*.2;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`;
 const flameFragment=`uniform float uTime;uniform vec3 uColor;uniform float uFade;varying vec2 vUv;
@@ -13,7 +14,8 @@ function tube(g,points,color,r=.025,opacity=1){return mesh(g,new THREE.TubeGeome
 function bolt(g,points,color,r,opacity){const path=new THREE.CurvePath();for(let i=1;i<points.length;i++)path.add(new THREE.LineCurve3(points[i-1],points[i]));return mesh(g,new THREE.TubeGeometry(path,points.length*4,r,5,false),glow(color,opacity));}
 export function buildSpellVisual(kind,radius,color,point,delay,duration){
   const root=new THREE.Group(),dynamic=[],rings=[],flames=[],falling=[],spikes=[],bolts=[],shards=[];
-  const ground=(x,z)=>heightAt(point.x+x,point.z+z)-point.y;
+  const accent=vfxSprite(['restore','recall','blessing'].includes(kind)?'teleport':kind==='arcaneZone'?'orb':'impact',color,Math.min(radius*.9,4));accent.position.y=.7;root.add(accent);
+  const ground=(x,z)=>surfaceAt(point.x+x,point.z+z,point.y+.7)-point.y;
   let meteor=null,meteorTail=null;
   const ring=(r,y=0)=>{const o=mesh(root,new THREE.TorusGeometry(r,.025,6,64),glow(color,.65),[0,y,0]);o.rotation.x=Math.PI/2;rings.push(o);return o;};
   if(kind==='meteorZone'){

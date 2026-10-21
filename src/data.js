@@ -1,3 +1,4 @@
+import { CREATURE_INFO } from './creature-info.js';
 import { GEAR_ITEMS, GEAR_RECIPES } from './equipment-data.js';
 export const MAX_LEVEL = 20;
 export const SAVE_KEY = 'aetherwild.save.v1';
@@ -92,6 +93,7 @@ export const RECIPES = [
   { result: 'elixir', category: 'alchemy', needs: { frost: 3, star: 1, water: 2 } },
 ];
 export const BIOMES = [
+  {id:'cloud',name:'구름 정원',en:'CLOUD GARDEN',level:'8–18',x:170,z:160,color:'#a8dce1'},
   { id: 'forest', name: '새벽의 숲', en: 'DAWNWOOD', level: '1–4', x: 0, z: 50, color: '#8fbe83' },
   { id: 'lake', name: '거울 호수', en: 'MIRROR LAKE', level: '4–7', x: -130, z: -32, color: '#7fc4c1' },
   { id: 'highland', name: '바람 고원', en: 'WINDREACH', level: '7–11', x: 135, z: -35, color: '#c5bf94' },
@@ -99,6 +101,9 @@ export const BIOMES = [
   { id: 'volcano', name: '잿불 황무지', en: 'EMBERFALL', level: '15–20', x: 163, z: -220, color: '#e1a085' },
 ];
 export const MONSTERS = {
+  cloudray:{name:'운무 가오리',level:8,hp:210,attack:23,speed:3.4,range:3,color:0xa4d8d3,shape:'ray',scale:1.2,drops:[['water',1,1,3],['crystal',.4,1,2]]},
+  windstag:{name:'풍령 사슴',level:13,hp:380,attack:36,speed:4.8,range:3,color:0x82b7ac,shape:'stag',scale:1.25,drops:[['leather',1,2,4],['frost',.4,1,2],['star',.1,1,1]]},
+  skywarden:{name:'천공 파수꾼',level:18,hp:720,attack:49,speed:3.1,range:4,color:0x94bfc9,shape:'golem',scale:1.7,drops:[['relic',1,1,3],['star',.3,1,2],['crystal',.8,2,4]]},
   slime: { name: '이끼 슬라임', level: 1, hp: 42, attack: 6, speed: 2.3, range: 2.4, color: 0x8fc979, shape: 'slime', scale: 1, drops: [['slime',1,1,2],['herb',.35,1,2],['health',.08,1,1]] },
   wolf: { name: '숲 늑대', level: 3, hp: 80, attack: 11, speed: 5.4, range: 2.7, color: 0x9c9e8b, shape: 'wolf', scale: 1, drops: [['leather',1,1,2],['meat',.65,1,2],['fang',.25,1,1]] },
   spirit: { name: '호수 정령', level: 5, hp: 115, attack: 15, speed: 3.5, range: 3, color: 0x86e1df, shape: 'spirit', scale: 1.1, drops: [['water',.75,1,2],['crystal',.35,1,2],['mana',.15,1,1]] },
@@ -109,8 +114,16 @@ export const MONSTERS = {
   drake: { name: '잿불 비룡', level: 18, hp: 660, attack: 51, speed: 4.4, range: 4.5, color: 0xc76c4d, shape: 'drake', scale: 1.8, drops: [['fire',1,2,3],['scale',.6,1,3],['star',.25,1,1]] },
   ancient: { name: '고대 수호자', level: 20, hp: 1850, attack: 65, speed: 3.2, range: 5.5, color: 0x8e8270, shape: 'golem', scale: 3, boss: true, drops: [['relic',1,3,5],['star',1,1,3],['scale',.8,2,4],['heart',.25,1,1]] },
 };
+for(const [id,m]of Object.entries(MONSTERS))Object.assign(m,CREATURE_INFO[id]);
 // One independent recall-scroll roll per kill; bosses guarantee one.
 for(const m of Object.values(MONSTERS))m.drops.push(['recall',m.boss?1:m.level>=12?.22:.12,1,1]);
+// Equipment base chances; test multiplier is applied only by rollLoot.
+for(const m of Object.values(MONSTERS))for(const classId of ['warrior','ranger','mage']){
+  const tier=m.level>=12?'epic':'basic';
+  for(const slot of ['armor','helmet','gloves','boots'])m.drops.push([`${classId}_${tier}_${slot}`,m.boss?.04:m.level>=12?.012:.008,1,1]);
+  const weapon=classId==='warrior'?(m.level>=12?'fireSword':'ironSword'):classId==='ranger'?(m.level>=12?'fireBow':'ironBow'):(m.level>=12?'fireStaff':'crystalStaff');
+  m.drops.push([weapon,m.boss?.06:.015,1,1]);
+}
 export const QUESTS = [
   { id: 'first', name: '숲의 첫 발걸음', description: '몬스터 3마리 처치', target: 3, stat: 'kills', xp: 100, gold: 30 },
   { id: 'gather', name: '자연이 주는 선물', description: '채집물 5회 수집', target: 5, stat: 'gathers', xp: 100, gold: 30 },

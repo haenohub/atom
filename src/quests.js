@@ -1,5 +1,5 @@
 import { NPCS, NPC_QUESTS } from './quest-data.js';
-import { addItems, gainXp } from './state.js';
+import { addItems, awardXp, TEST_XP_MULTIPLIER } from './state.js';
 export function questProgress(p,q) {
   const entry=p.quests?.[q.id],o=q.objective;
   if(!entry)return 0;
@@ -23,8 +23,8 @@ export function turnInQuest(p,id,npcId) {
   const q=NPC_QUESTS.find(q=>q.id===id&&q.npc===npcId);
   if(!q||questStatus(p,q)!=='ready')return {ok:false,message:'의뢰 목표를 완료한 뒤 의뢰인에게 돌아오세요.'};
   if(q.objective.kind==='deliver')p.inventory[q.objective.item]-=q.objective.count;
-  p.quests[q.id].status='completed';p.gold+=q.gold;addItems(p,q.items);const levels=gainXp(p,q.xp);
-  return {ok:true,levels,message:`의뢰 완료 · ${q.name} · +${q.xp} EXP / ${q.gold} G`};
+  p.quests[q.id].status='completed';p.gold+=q.gold;addItems(p,q.items);const levels=awardXp(p,q.xp);
+  return {ok:true,levels,message:`의뢰 완료 · ${q.name} · +${q.xp*TEST_XP_MULTIPLIER} EXP / ${q.gold} G`};
 }
 export function npcMarker(p,id) {
   const statuses=NPC_QUESTS.filter(q=>q.npc===id).map(q=>questStatus(p,q));

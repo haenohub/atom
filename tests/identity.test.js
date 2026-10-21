@@ -38,7 +38,7 @@ test('v0.3 migration keeps old armor and inventory, opens new slots and grants o
 });
 test('every item has its own valid image cell, all monster loot images are explicitly mapped',()=>{
   const ids=Object.keys(ITEMS),cells=ids.map(id=>{const a=itemArt(id);assert.ok(a.index>=0&&a.index<a.columns*a.columns);return `${a.sheet}:${a.index}`;});assert.equal(new Set(cells).size,ids.length);
-  for(const m of Object.values(MONSTERS))for(const [id]of m.drops)assert.notEqual(itemArt(id).index,22,'generic bag fallback');
+  for(const m of Object.values(MONSTERS))for(const [id]of m.drops)assert.notEqual(`${itemArt(id).sheet}:${itemArt(id).index}`,'loot-icons.png:22','generic bag fallback');
 });
 test('recall scroll consumes one at full HP, missing item cannot be used and monsters actually roll it',()=>{
   const p=createPlayer();assert.equal(consume(p,'recall').ok,false);p.inventory.recall=2;assert.equal(consume(p,'recall').recall,true);assert.equal(p.inventory.recall,1);assert.equal(consume(p,'recall').ok,true);assert.equal(consume(p,'recall').ok,false);

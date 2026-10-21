@@ -1,3 +1,5 @@
+import { buildFantasyWorld,updateFantasy } from './fantasy-world.js';
+import { SKY_ISLANDS } from './sky-layout.js';
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -12,7 +14,7 @@ const geos = { rock: weatheredRock(2), sphere: new THREE.SphereGeometry(1,14,10)
 export class World {
   constructor(scene, renderer) {
     this.scene=scene; this.renderer=renderer; this.rng=seededRandom(); this.colliders=[]; this.nodes=[]; this.chests=[]; this.monsters=[]; this.npcs=[]; this.batches=new Map(); this.fireParticles=[];this.decorationBatches=[];
-    this.ground(); this.decorate(); this.camp(); this.characters(); this.ruins(); this.populate(); this.finishBatches(); this.sky();
+    this.ground(); this.decorate(); this.camp(); this.characters(); this.ruins(); this.populate(); this.finishBatches(); this.sky(); buildFantasyWorld(this); this.populateCloud();
   }
   instance(key, geo, material, x,y,z,sx,sy,sz, tint, ry=0) {
     if(['tree-skeleton','tree-leaves','pine-leaves'].includes(key))key+=`-${Math.floor(x/64)}-${Math.floor(z/64)}`;
@@ -31,7 +33,7 @@ export class World {
   ground() {
     const g=new THREE.PlaneGeometry(WORLD_SIZE,WORLD_SIZE,256,256); g.rotateX(-Math.PI/2);
     const p=g.attributes.position, colors=[];
-    const palette={forest:[color('#688858'),color('#a7b97c')],lake:[color('#6e9278'),color('#aac9a3')],highland:[color('#849467'),color('#c4bc8c')],snow:[color('#c6d9d9'),color('#eef0e3')],volcano:[color('#776e60'),color('#b88a6c')]};
+    const palette={cloud:[color('#9db4a1'),color('#d7deac')],forest:[color('#688858'),color('#a7b97c')],lake:[color('#6e9278'),color('#aac9a3')],highland:[color('#849467'),color('#c4bc8c')],snow:[color('#c6d9d9'),color('#eef0e3')],volcano:[color('#776e60'),color('#b88a6c')]};
     for(let i=0;i<p.count;i++) {
       const x=p.getX(i),z=p.getZ(i),h=heightAt(x,z);p.setY(i,h);
       const pair=palette[biomeAt(x,z)],t=.35+this.rng()*.2+Math.sin(x*.11)*Math.cos(z*.09)*.15;
@@ -197,6 +199,13 @@ export class World {
       this.node(kinds[Math.floor(this.rng()*kinds.length)],x,z,`node-${id++}`);
     }
   }
+  populateCloud(){
+    for(const [i,type]of ['cloudray','windstag','skywarden'].entries()){
+      const p=SKY_ISLANDS[[3,6,7][i]];for(let k=0;k<2;k++){this.spawn(type,p.x+(k?2:-2),p.z,`cloud-${i}-${k}`);const m=this.monsters.at(-1);m.island=p;m.group.position.y=p.y;}
+    }
+    for(const [i,n]of [SKY_ISLANDS[0],SKY_ISLANDS[3],SKY_ISLANDS[6]].entries()){this.node(i===1?'frost':'crystal',n.x-3,n.z,`cloud-node-${i}`);this.nodes.at(-1).group.position.y=n.y;}
+    this.chest(212,129,8,4);this.chests.at(-1).group.position.y=100;
+  }
   sky() {
     const sky=new Sky();sky.scale.setScalar(1400);
     const uniforms=sky.material.uniforms;uniforms.turbidity.value=2;uniforms.rayleigh.value=1.25;uniforms.mieCoefficient.value=.004;uniforms.mieDirectionalG.value=.82;
@@ -220,6 +229,7 @@ export class World {
     birdsGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));this.birds=new THREE.LineSegments(birdsGeo,new THREE.LineBasicMaterial({color:0x46544d}));this.scene.add(this.birds);
   }
   update(time, dt, viewer, low=false) {
+    updateFantasy(this,time);
     for(const n of this.npcs){const u=n.group.userData;u.torso.rotation.z=Math.sin(time*1.4+n.x)*.018;u.head.rotation.y=Math.sin(time*.65+n.z)*.08;u.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*1.3+i)*.035);u.marker.position.y=2.85+Math.sin(time*2)*.06;if(viewer){const d=Math.hypot(n.x-viewer.x,n.z-viewer.z);if(d<7&&d>.1){const goal=Math.atan2(n.x-viewer.x,n.z-viewer.z),angle=goal-n.group.rotation.y;n.group.rotation.y+=Math.atan2(Math.sin(angle),Math.cos(angle))*Math.min(1,dt*5);}n.group.visible=d<90;u.label.visible=d<18;u.marker.visible=d<45;}}
     if(viewer)this.skyDome.position.copy(viewer);
     this.clouds.position.x=Math.sin(time*.004)*18;this.birds.position.x=Math.sin(time*.08)*15;

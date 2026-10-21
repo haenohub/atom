@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPlayer, attributes, xpForLevel, gainXp, rollLoot, addItems, canCraft, craft, equip, consume, advance, damagePlayer, claimQuests, savePlayer, loadPlayer } from '../src/state.js';
+import { effectiveDropChance, createPlayer, attributes, xpForLevel, gainXp, rollLoot, addItems, canCraft, craft, equip, consume, advance, damagePlayer, claimQuests, savePlayer, loadPlayer } from '../src/state.js';
 import { CLASSES, BRANCHES, MONSTERS, ITEMS, RECIPES, MAX_LEVEL, skillsFor, SAVE_KEY } from '../src/data.js';
 import { seededRandom, heightAt, biomeAt, isWater } from '../src/terrain.js';
 
@@ -15,11 +15,11 @@ test('experience crosses multiple thresholds and caps at level 20',()=>{
 for(const [id,m]of Object.entries(MONSTERS)){
   test(`${id}: exact probability boundaries and guaranteed drops`,()=>{
     const never=rollLoot(id,()=>.9999999),always=rollLoot(id,()=>0);
-    for(const [item,chance,min,max]of m.drops){assert.ok(always[item]>=min&&always[item]<=max);assert.equal(Boolean(never[item]),chance===1);}
+    for(const [item,chance,min,max]of m.drops){assert.ok(always[item]>=min&&always[item]<=max);assert.equal(Boolean(never[item]),effectiveDropChance(item,chance)===1);}
   });
   test(`${id}: observed drops follow declared independent probabilities`,()=>{
     const rng=seededRandom(42),n=12000,counts={};for(let i=0;i<n;i++){const loot=rollLoot(id,rng);for(const [key,value]of Object.entries(loot)){counts[key]=(counts[key]||0)+1;const row=m.drops.find(r=>r[0]===key);assert.ok(value>=row[2]&&value<=row[3]);}}
-    for(const [key,chance]of m.drops)assert.ok(Math.abs((counts[key]||0)/n-chance)<.025,`${id}/${key}`);
+    for(const [key,chance]of m.drops)assert.ok(Math.abs((counts[key]||0)/n-effectiveDropChance(key,chance))<.025,`${id}/${key}`);
   });
 }
 test('crafting failure is atomic, unknown recipes cannot be crafted',()=>{

@@ -13,6 +13,7 @@ export function makeArrow(color=0xbcc6b8,enchanted=false){
   root.userData.tip=tip;return root;
 }
 function hand(group,x,y,z){
+  const parent=group;group=new THREE.Group();group.userData.firstPersonHand=true;parent.add(group);
   const leather=materials().leather.clone(),skin=new THREE.MeshStandardMaterial({color:0xb58e72,roughness:.8});
   const forearm=new THREE.Mesh(new THREE.CylinderGeometry(.045,.064,.37,12),leather);forearm.position.set(x,y-.16,z+.08);forearm.rotation.x=.45;group.add(forearm);
   const palm=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),leather);palm.scale.set(.055,.085,.05);palm.position.set(x,y,z);group.add(palm);

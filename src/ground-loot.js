@@ -18,7 +18,7 @@ export class GroundLoot {
     const mote=new THREE.Mesh(new THREE.OctahedronGeometry(.045),new THREE.MeshBasicMaterial({color}));mote.position.y=.8;group.add(mote);
     const cards=[];Object.keys(drop.items).forEach((id,i,ids)=>{const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:itemMap(id),transparent:false}));const angle=i/Math.max(1,ids.length)*Math.PI*2;sprite.position.set(Math.cos(angle)*.4,.7+(i%2)*.18,Math.sin(angle)*.4);sprite.scale.set(.28,.28,1);group.add(sprite);cards.push(sprite);});
     group.traverse(o=>{if(o.isMesh)o.castShadow=true;});
-    const floor=isWater(drop.x,drop.z)?WATER_LEVEL:heightAt(drop.x,drop.z);group.position.set(drop.x,floor+(falling?1.1:0),drop.z);this.scene.add(group);
+    const floor=Number.isFinite(drop.y)?drop.y:isWater(drop.x,drop.z)?WATER_LEVEL:heightAt(drop.x,drop.z);group.position.set(drop.x,floor+(falling?1.1:0),drop.z);this.scene.add(group);
     this.bags.set(drop.id,{...drop,group,floor,vy:falling?2.6:0,settled:!falling,bounces:0,mote,glow,cards});
   }
   remove(id){const b=this.bags.get(id);if(!b)return;this.scene.remove(b.group);b.group.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});this.bags.delete(id);}

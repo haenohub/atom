@@ -10,7 +10,8 @@ with sync_playwright() as p:
     page.on('console',lambda m:(errors.append(m.text),print('CONSOLE ERROR',m.text,flush=True)) if m.type=='error' else None)
     page.goto(os.environ.get('GAME_URL','http://127.0.0.1:4173/?quality=low'),wait_until='networkidle',timeout=120000)
     page.wait_for_selector('#welcome:not(.hidden)');assert not page.evaluate("'__AETHERWILD__' in window")
-    page.click('[data-class="ranger"]');page.click('#new-game')
+    assert page.locator('[data-save-slot]').count()==5
+    page.click('[data-save-slot="2"]');page.click('[data-class="ranger"]');page.click('#new-game')
     page.wait_for_function('!!document.pointerLockElement && document.querySelector("#player-class").textContent==="궁수"')
     page.evaluate('() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
     page.keyboard.press('F1');page.wait_for_function('document.querySelector("#location-state").textContent.startsWith("3인칭")')

@@ -109,12 +109,12 @@ with sync_playwright() as p:
     page.wait_for_selector('.branch-card.chosen')
     passed('advancement UI requires camp, chooses archmage and unlocks branch skill')
     page.click('[data-tab="journal"]')
-    assert page.locator('.bestiary-card').count() == 9
+    assert page.locator('.bestiary-card').count() == 12
     assert '25%' in page.locator('#panel-content').inner_text()
     page.click('[data-tab="map"]')
     assert page.locator('#world-map').is_visible()
     page.screenshot(path=str(ARTIFACTS / 'map.png'))
-    passed('journal exposes all nine drop tables and terrain map renders')
+    passed('journal exposes all twelve drop tables and terrain map renders')
     page.click('[data-tab="settings"]')
     page.click('#manual-save')
     page.reload(wait_until='networkidle')

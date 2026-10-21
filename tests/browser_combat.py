@@ -19,7 +19,7 @@ with sync_playwright() as p:
           api.startGame(api.createPlayer(classId));
           const x=0,z=-14;e.camera.position.set(x,heightAt(x,z)+1.75,z);e.feetY=heightAt(x,z);e.fallPeak=e.feetY;e.vy=0;e.yaw=0;
           const m=e.world.monsters.find(m=>m.type==='slime');m.x=x;m.z=z-3;m.homeX=x;m.homeZ=z-3;m.hp=1;m.alive=true;m.group.visible=true;m.group.position.set(x,heightAt(x,z-3),z-3);m.freeze=100;
-          e.pitch=Math.atan2(m.group.position.y+(classId==='mage'?0:1.1)-e.camera.position.y,3);e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();e.attackCooldown=0;window.target=m;
+          e.pitch=Math.atan2(m.group.position.y+1.1-e.camera.position.y,3);e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();e.attackCooldown=0;window.target=m;
         }""", class_id)
         page.wait_for_function('window.__AETHERWILD__.engine.locked')
         page.mouse.down()
