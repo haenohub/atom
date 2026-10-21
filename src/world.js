@@ -3,14 +3,16 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { materials, groundMaterial, leafGeometry, grassGeometry, weatheredRock, updateWind, canvasTexture } from './art.js';
 import { heightAt, biomeAt, isWater, seededRandom, WORLD_SIZE, WATER_LEVEL } from './terrain.js';
+import { createMonster, createNPC } from './actors.js';
+import { NPCS } from './quest-data.js';
 import { CAMP, MONSTERS } from './data.js';
 const color = c => new THREE.Color(c);
 const mat = (c, extra={}) => new THREE.MeshStandardMaterial({ color:c, roughness:.9, flatShading:false, ...extra });
 const geos = { rock: weatheredRock(2), sphere: new THREE.SphereGeometry(1,14,10), trunk: new THREE.CylinderGeometry(.65,1,1,12), cone: new THREE.ConeGeometry(1,1,16), cube: new THREE.BoxGeometry(1,1,1) };
 export class World {
   constructor(scene, renderer) {
-    this.scene=scene; this.renderer=renderer; this.rng=seededRandom(); this.colliders=[]; this.nodes=[]; this.chests=[]; this.monsters=[]; this.batches=new Map(); this.fireParticles=[];this.decorationBatches=[];
-    this.ground(); this.decorate(); this.camp(); this.ruins(); this.populate(); this.finishBatches(); this.sky();
+    this.scene=scene; this.renderer=renderer; this.rng=seededRandom(); this.colliders=[]; this.nodes=[]; this.chests=[]; this.monsters=[]; this.npcs=[]; this.batches=new Map(); this.fireParticles=[];this.decorationBatches=[];
+    this.ground(); this.decorate(); this.camp(); this.characters(); this.ruins(); this.populate(); this.finishBatches(); this.sky();
   }
   instance(key, geo, material, x,y,z,sx,sy,sz, tint, ry=0) {
     if(['tree-skeleton','tree-leaves','pine-leaves'].includes(key))key+=`-${Math.floor(x/64)}-${Math.floor(z/64)}`;
@@ -72,6 +74,10 @@ export class World {
       if(isWater(x,z)||Math.hypot(x-CAMP.x,z-CAMP.z)<14||Math.abs(x)<7||(b==='volcano'&&this.rng()<.85))continue;
       addTree(x,z,7+this.rng()*7,b==='snow'||this.rng()<.25);
     }
+    const fernParts=[];
+    for(let i=0;i<7;i++){const geo=new THREE.PlaneGeometry(.18,.62);geo.translate(0,.3,0);geo.rotateX(-.65);geo.rotateY(i*2.4);fernParts.push(geo);}
+    const fern=mergeGeometries(fernParts);fernParts.forEach(g=>g.dispose());
+    for(let i=0;i<210;i++){const a=this.rng()*6.28,r=10+this.rng()*62,x=Math.cos(a)*r,z=18+Math.sin(a)*r;if(isWater(x,z)||Math.abs(x)<5||Math.hypot(x,z-44)<12)continue;this.instance('grass-ferns',fern,m.grass,x,heightAt(x,z),z,.8+this.rng()*.7,1+this.rng(),.8+this.rng()*.7,'#c8d9a2',this.rng()*6.28);}
     // Denser, naturally sized trees frame the first route and leave a clear path.
     for(const [x,z,h]of [[-12,24,10],[14,15,11],[-19,2,13],[23,28,10],[-28,34,12],[27,-8,14],[-37,-15,12],[41,3,10],[-16,-29,11],[15,-39,12]])addTree(x,z,h,false);
     for(let i=0;i<260;i++){
@@ -109,6 +115,23 @@ export class World {
     for(const [xx,zz] of [[-9,48],[-10,46]])this.mesh(geos.cube,materials().bark,[xx,heightAt(xx,zz)+.65,zz],[1.4,1.3,1.4]);
     const signY=heightAt(2,34);this.mesh(geos.trunk,materials().bark,[2,signY+1.2,34],[.15,2.4,.15]);
     this.mesh(geos.cube,materials().bark,[2,signY+2.1,34],[2.6,.65,.15]);
+    // The NPC stations are modelled here: a forged anvil, drying rack and
+    // lanterns give the camp readable silhouettes as well as material detail.
+    const smithY=heightAt(-9,44),metal=materials().metal;
+    this.mesh(geos.trunk,materials().bark,[-9,smithY+.35,44],[.9,.7,.9]);
+    this.mesh(geos.cube,metal,[-9,smithY+.82,44],[1.05,.23,.5]);
+    const horn=this.mesh(geos.cone,metal,[-9.7,smithY+.81,44],[.23,.9,.23]);horn.rotation.z=Math.PI/2;
+    this.mesh(geos.cube,metal,[-9,smithY+.62,44],[.42,.3,.35]);
+    const tableY=heightAt(8,38);
+    this.mesh(geos.cube,materials().bark,[8,tableY+.88,38],[2.1,.13,.85]);
+    for(const dx of [-.8,.8])this.mesh(geos.trunk,materials().bark,[8+dx,tableY+.45,38],[.14,.9,.14]);
+    for(let i=0;i<4;i++){const bottle=this.mesh(new THREE.CylinderGeometry(.07,.12,.28,10),mat(i%2?0x839675:0x8f7054,{roughness:.22,metalness:.12}),[7.5+i*.33,tableY+1.08,38]);this.mesh(geos.trunk,materials().bark,[bottle.position.x,tableY+1.25,38],[.07,.08,.07]);}
+    for(const [lx,lz]of [[-3,32],[9,42]]){
+      const ly=heightAt(lx,lz);this.mesh(geos.trunk,materials().bark,[lx,ly+1.2,lz],[.1,2.4,.1]);
+      this.mesh(geos.cube,materials().metal,[lx,ly+2.4,lz],[.32,.08,.32]);
+      this.mesh(geos.cube,mat(0xffde99,{emissive:0xffbd65,emissiveIntensity:1.5,roughness:.4}),[lx,ly+2.2,lz],[.19,.32,.19]);
+      for(const dx of [-.13,.13])this.mesh(geos.trunk,materials().metal,[lx+dx,ly+2.2,lz],[.025,.4,.025]);
+    }
   }
   ruins() {
     for(const [cx,cz] of [[36,-64],[130,-63],[-110,-208],[164,-228]]){
@@ -143,49 +166,13 @@ export class World {
     const beam=this.mesh(new THREE.CylinderGeometry(.06,.06,4,5),mat(0xf4db8c,{transparent:true,opacity:.4,emissive:0xe8c460,emissiveIntensity:1}),[0,3,0],null,group);
     this.scene.add(group);this.chests.push({id:`chest-${id}`,name:'잊힌 보물상자',x,z,tier,group,lid,beam,opened:false});
   }
-  monsterModel(type) {
-    const def=MONSTERS[type],g=new THREE.Group(),body=mat(def.color,{map:materials().leather.map,normalMap:materials().leather.normalMap,normalScale:new THREE.Vector2(.35,.35)}),dark=mat(0x242c24),light=mat(0xe9e7c6),eye=mat(def.boss?0xffbd67:0x211d15,{emissive:def.boss?0xff7d35:0x1c2010,emissiveIntensity:def.boss?.65:0});
-    if(def.shape==='slime'){
-      this.mesh(geos.sphere,new THREE.MeshPhysicalMaterial({color:0x667b46,roughness:.25,transparent:true,opacity:.84,clearcoat:1,metalness:.1,transmission:.12}),[0,.8,0],[1.1,.85,1.1],g);
-      for(const x of [-.34,.34])this.mesh(geos.sphere,dark,[x,1,-.86],[.12,.16,.12],g);
-      this.mesh(geos.sphere,mat(0xbed18f,{transparent:true,opacity:.5}),[-.25,.62,-.3],[.19,.23,.18],g);
-    }else if(def.shape==='wolf'||def.shape==='boar'){
-      this.mesh(geos.sphere,body,[0,1.05,0],[.65,.66,1.2],g);
-      this.mesh(geos.rock,body,[0,1.5,-.94],[.52,.55,.65],g);
-      this.mesh(geos.rock,dark,[0,1.25,-1.47],[.28,.25,.38],g);
-      for(const x of [-.4,.4]){
-        const ears=this.mesh(geos.cone,body,[x,2,-.95],[.22,.5,.22],g);ears.rotation.z=x;
-        this.mesh(geos.sphere,eye,[x*.77,1.65,-1.4],[.07,.07,.07],g);
-        for(const z of [-.65,.7]){const leg=this.mesh(new THREE.CapsuleGeometry(.105,.65,5,8),body,[x,.46,z],null,g);(g.userData.legs??=[]).push(leg);this.mesh(geos.sphere,dark,[x,.08,z-.07],[.15,.1,.22],g);}
-      }
-      const tail=this.mesh(geos.cone,body,[0,1.2,1.4],[.25,1.2,.25],g);tail.rotation.x=.8;
-      if(def.shape==='boar')for(const x of [-.32,.32]){const tusk=this.mesh(geos.cone,light,[x,1.15,-1.65],[.12,.65,.12],g);tusk.rotation.x=-.5;}
-    }else if(def.shape==='spirit'){
-      this.mesh(new THREE.IcosahedronGeometry(.65,2),mat(def.color,{emissive:def.color,emissiveIntensity:.6}),[0,1.6,0],null,g);
-      const ring=this.mesh(new THREE.TorusGeometry(1,.07,5,16),light,[0,1.6,0],null,g);ring.rotation.x=1;
-      for(let i=0;i<3;i++)this.mesh(geos.sphere,mat(def.color,{transparent:true,opacity:.5}),[Math.sin(i*2)*.7,.5+i*.3,Math.cos(i*2)*.7],[.2,.2,.2],g);
-    }else if(def.shape==='golem'){
-      this.mesh(geos.rock,body,[0,1.8,0],[1,1.2,.7],g);
-      this.mesh(geos.rock,body,[0,3.1,0],[.6,.6,.55],g);
-      for(const x of [-.9,.9]){
-        this.mesh(geos.rock,body,[x*1.3,1.65,0],[.48,1.05,.5],g);
-        this.mesh(geos.rock,dark,[x*.6,.5,0],[.4,.6,.4],g);
-        this.mesh(geos.sphere,eye,[x*.28,3.2,-.51],[.1,.12,.08],g);
-      }
-      this.mesh(new THREE.OctahedronGeometry(.32),mat(def.color===0x99b9de?0xa7f4ff:0xe7d89c,{emissive:0xc9edb0,emissiveIntensity:.7}),[0,1.9,-.7],null,g);
-      if(def.boss)for(let i=0;i<3;i++)this.mesh(geos.cone,mat(0xe6c591),[(i-1)*.4,3.8,0],[.18,.9,.18],g);
-    }else{
-      this.mesh(geos.rock,body,[0,1.3,0],[.9,.8,1.7],g);this.mesh(geos.rock,body,[0,2,-1.3],[.55,.6,.9],g);
-      for(const x of [-1,1]){
-        const wingGeo=new THREE.BufferGeometry();wingGeo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,x*3,1.5,.5,x*2,0,1.9],3));wingGeo.computeVertexNormals();
-        this.mesh(wingGeo,mat(0xb17a56,{side:THREE.DoubleSide}),[x*.6,1.7,0],null,g);
-        for(const z of [-.6,.9])this.mesh(geos.cone,dark,[x*.6,.45,z],[.25,.9,.25],g);
-        this.mesh(geos.sphere,eye,[x*.3,2.2,-1.98],[.12,.12,.12],g);
-      }
-      const tail=this.mesh(geos.cone,body,[0,1.3,2.1],[.5,2.4,.5],g);tail.rotation.x=Math.PI/2;
-    }
-    g.scale.setScalar(def.scale);return g;
+  characters(){
+    for(const def of NPCS){const group=createNPC(def);group.position.set(def.x,heightAt(def.x,def.z),def.z);group.rotation.y=Math.atan2(def.x-CAMP.x,def.z-CAMP.z);this.scene.add(group);this.npcs.push({...def,group});this.colliders.push({x:def.x,z:def.z,r:.35});}
   }
+  monsterModel(type) {
+    return createMonster(type);
+  }
+
   spawn(type,x,z,id) {
     const def=MONSTERS[type],group=this.monsterModel(type);group.position.set(x,heightAt(x,z),z);this.scene.add(group);
     this.monsters.push({id,type,def,group,x,z,homeX:x,homeZ:z,hp:def.hp,alive:true,respawnAt:0,attackTimer:0,hit:0,aggro:false,slow:0,freeze:0,poison:0,poisonPower:0,poisonTick:0});
@@ -212,9 +199,17 @@ export class World {
   }
   sky() {
     const sky=new Sky();sky.scale.setScalar(1400);
-    const uniforms=sky.material.uniforms;uniforms.turbidity.value=2.6;uniforms.rayleigh.value=2.2;uniforms.mieCoefficient.value=.004;uniforms.mieDirectionalG.value=.82;
+    const uniforms=sky.material.uniforms;uniforms.turbidity.value=2;uniforms.rayleigh.value=1.25;uniforms.mieCoefficient.value=.004;uniforms.mieDirectionalG.value=.82;
     uniforms.sunPosition.value.set(-.55,.48,-.6).normalize();this.scene.add(sky);this.atmosphere=sky;
-    if(this.renderer){const capture=new THREE.Scene();capture.add(sky.clone());const pmrem=new THREE.PMREMGenerator(this.renderer);this.environmentTarget=pmrem.fromScene(capture,.02,.1,2000);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.35;pmrem.dispose();}
+    if(this.renderer){const capture=new THREE.Scene();capture.add(sky.clone());const pmrem=new THREE.PMREMGenerator(this.renderer);this.environmentTarget=pmrem.fromScene(capture,.02,.1,2000);this.scene.environment=this.environmentTarget.texture;this.scene.environmentIntensity=.5;pmrem.dispose();}
+    sky.visible=false;
+    // A calibrated original sky gradient keeps blue zeniths and a warm solar
+    // aureole without washing out the terrain's separate exposure.
+    const skyMaterial=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{uHorizon:{value:new THREE.Color(0xb8cbd5)},uZenith:{value:new THREE.Color(0x4b8fbf)},uSun:{value:new THREE.Vector3(-.55,.84,-.6).normalize()}},vertexShader:`varying vec3 vSkyDirection;void main(){vSkyDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`uniform vec3 uHorizon;uniform vec3 uZenith;uniform vec3 uSun;varying vec3 vSkyDirection;void main(){vec3 d=normalize(vSkyDirection);float h=pow(max(0.,d.y),.45);vec3 c=mix(uHorizon,uZenith,h);float sun=max(0.,dot(d,uSun));c+=vec3(1.,.82,.5)*pow(sun,48.)*.28;c+=vec3(1.,.93,.76)*smoothstep(.9997,.99992,sun)*2.;gl_FragColor=vec4(c,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`});
+    this.skyDome=new THREE.Mesh(new THREE.SphereGeometry(950,32,16),skyMaterial);this.skyDome.frustumCulled=false;this.skyDome.renderOrder=-10;this.scene.add(this.skyDome);
     const cloudMap=canvasTexture(256,(ctx)=>{
       for(let i=0;i<55;i++){const x=25+this.rng()*206,y=85+this.rng()*90,r=14+this.rng()*35;const grad=ctx.createRadialGradient(x,y,0,x,y,r);grad.addColorStop(0,'#fffdf9a0');grad.addColorStop(.5,'#eee9e050');grad.addColorStop(1,'#ffffff00');ctx.fillStyle=grad;ctx.fillRect(x-r,y-r,r*2,r*2);}
     });
@@ -225,13 +220,15 @@ export class World {
     birdsGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));this.birds=new THREE.LineSegments(birdsGeo,new THREE.LineBasicMaterial({color:0x46544d}));this.scene.add(this.birds);
   }
   update(time, dt, viewer, low=false) {
+    for(const n of this.npcs){const u=n.group.userData;u.torso.rotation.z=Math.sin(time*1.4+n.x)*.018;u.head.rotation.y=Math.sin(time*.65+n.z)*.08;u.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*1.3+i)*.035);u.marker.position.y=2.85+Math.sin(time*2)*.06;if(viewer){const d=Math.hypot(n.x-viewer.x,n.z-viewer.z);if(d<7&&d>.1){const goal=Math.atan2(n.x-viewer.x,n.z-viewer.z),angle=goal-n.group.rotation.y;n.group.rotation.y+=Math.atan2(Math.sin(angle),Math.cos(angle))*Math.min(1,dt*5);}n.group.visible=d<90;u.label.visible=d<18;u.marker.visible=d<45;}}
+    if(viewer)this.skyDome.position.copy(viewer);
     this.clouds.position.x=Math.sin(time*.004)*18;this.birds.position.x=Math.sin(time*.08)*15;
     this.flame.scale.y=1.6+Math.sin(time*12)*.18;this.fireLight.intensity=18+Math.sin(time*9)*3;
     updateWind(time);this.water.material.normalMap.offset.set(time*.007,time*.004);if(this.water.material.userData.shader)this.water.material.userData.shader.uniforms.uWaterTime.value=time;
     for(const c of this.chests)if(!c.opened)c.beam.material.opacity=.28+Math.sin(time*2)*.15;
     for(const n of this.nodes)n.group.visible=time>=n.availableAt&&(!viewer||Math.hypot(n.x-viewer.x,n.z-viewer.z)<(low?50:105));
     if(viewer){
-      for(const m of this.monsters)m.group.visible=m.alive&&Math.hypot(m.x-viewer.x,m.z-viewer.z)<(low?65:130);
+      for(const m of this.monsters)m.group.visible=(m.alive||(m.deathAge||0)<5)&&Math.hypot(m.x-viewer.x,m.z-viewer.z)<(low?65:130);
       for(const c of this.chests)c.group.visible=Math.hypot(c.x-viewer.x,c.z-viewer.z)<120;
       for(const b of this.decorationBatches){const range=b.key.startsWith('grass')?(low?45:75):(low?115:225);b.mesh.visible=Math.hypot(b.center.x-viewer.x,b.center.z-viewer.z)<range+b.radius;}
     }

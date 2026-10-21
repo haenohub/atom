@@ -74,6 +74,10 @@ export function groundMaterial(){
     shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
       vec2 groundUV=vTerrainWorld.xz*.17;
       vec3 grassColor=texture2D(map,groundUV).rgb;
+      float terrainPatch=sin(vTerrainWorld.x*.041+sin(vTerrainWorld.z*.067))*sin(vTerrainWorld.z*.053)*.5+.5;
+      vec3 secondColor=texture2D(map,vec2(-groundUV.y,groundUV.x)*.73+vec2(.31,.57)).rgb;
+      grassColor=mix(grassColor,secondColor,terrainPatch*.42);
+      grassColor*=mix(vec3(.87,.91,.82),vec3(1.06,1.03,.97),terrainPatch);
       vec3 rockColor=texture2D(uRock,groundUV*.61).rgb;
       vec3 soilColor=texture2D(uSoil,groundUV*.8).rgb;
       float slope=1.0-abs(vTerrainNormal.y);

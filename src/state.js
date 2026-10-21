@@ -1,11 +1,13 @@
 import { CLASSES, BRANCHES, ITEMS, RECIPES, MAX_LEVEL, MONSTERS, QUESTS, SAVE_KEY, CAMP } from './data.js';
+import { NPC_QUESTS } from './quest-data.js';
+import { sanitizeDrop } from './loot.js';
 export const xpForLevel = level => 50 + level * 24;
 export function createPlayer(classId = 'warrior') {
   if (!CLASSES[classId]) throw new Error('알 수 없는 직업');
   const c = CLASSES[classId];
   return { classId, branch: null, level: 1, xp: 0, hp: c.hp, mana: c.mana, gold: 0,
     inventory: { [c.weapon]: 1, health: 5, mana: 3 }, equipment: { weapon: c.weapon, armor: null },
-    stats: { kills: 0, gathers: 0, crafts: 0, chests: 0, advanced: 0, boss: 0 }, claimed: [], opened: [],
+    stats: { kills: 0, gathers: 0, crafts: 0, chests: 0, advanced: 0, boss: 0, alchemy: 0 }, quests: {}, killsByType: {}, groundLoot: [], claimed: [], opened: [],
     position: { ...CAMP }, buffs: { food: 0, rage: 0, guard: 0 }, playtime: 0 };
 }
 export function attributes(p) {
@@ -35,7 +37,7 @@ export function craft(p, resultId) {
   const r = RECIPES.find(r => r.result === resultId);
   if (!canCraft(p, r)) return { ok: false, message: '재료가 부족합니다.' };
   for (const [id, n] of Object.entries(r.needs)) p.inventory[id] -= n;
-  addItems(p, { [r.result]: r.count || 1 }); p.stats.crafts++;
+  addItems(p, { [r.result]: r.count || 1 }); p.stats.crafts++; if(r.category==='alchemy')p.stats.alchemy++;
   return { ok: true, message: `${ITEMS[r.result].name} 제작 완료` };
 }
 export function equip(p, id) {
@@ -98,6 +100,10 @@ export function loadPlayer(storage = globalThis.localStorage) {
     p.opened = Array.isArray(raw.opened) ? [...new Set(raw.opened.filter(id => typeof id === 'string' && /^chest-\d+$/.test(id)))].slice(0,100) : [];
     if (raw.position && Number.isFinite(raw.position.x) && Number.isFinite(raw.position.z)) p.position = { x: finite(raw.position.x,-310,310,0), z: finite(raw.position.z,-310,310,44) };
     const a = attributes(p); p.hp = finite(raw.hp,1,a.maxHp,a.maxHp); p.mana = finite(raw.mana,0,a.maxMana,a.maxMana);
+    for(const [type,n] of Object.entries(raw.killsByType||{}))if(MONSTERS[type])p.killsByType[type]=Math.floor(finite(n,0,1e7,0));
+    for(const q of NPC_QUESTS){const entry=raw.quests?.[q.id];if(entry&&['active','completed'].includes(entry.status))p.quests[q.id]={status:entry.status,baseline:Math.floor(finite(entry.baseline,0,1e7,0))};}
+    const dropIds=new Set();
+    if(Array.isArray(raw.groundLoot))for(const rawDrop of raw.groundLoot){const drop=sanitizeDrop(rawDrop);if(drop&&!dropIds.has(drop.id)){p.groundLoot.push(drop);dropIds.add(drop.id);}}
     p.playtime = finite(raw.playtime,0,1e9,0);
     return p;
   } catch { return null; }

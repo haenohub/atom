@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { materials } from './art.js';
+import { warriorPose } from './motion.js';
 import { ITEMS } from './data.js';
 
 export function makeArrow(color=0xbcc6b8,enchanted=false){
@@ -48,9 +49,9 @@ export function createWeapon(player){
     const gem=add(new THREE.OctahedronGeometry(.079,1),new THREE.MeshPhysicalMaterial({color:0xa6d2d1,emissive:0x699cba,emissiveIntensity:1.1,metalness:.25,roughness:.12,transmission:.15}),0,.47,0);g.userData.gem=gem;
     hand(g,0,-.2,.02);g.position.set(.35,-.38,-.76);g.rotation.set(-.07,0,-.13);
   }
-  g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});g.userData.base=g.position.clone();return g;
+  g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});g.userData.base=g.position.clone();g.userData.baseRotation=g.rotation.clone();return g;
 }
-export function animateWeapon(g,{classId,time,bob=0,swing=0,charge=0,drawing=false,arrowSkill=null,targeting=false}){
+export function animateWeapon(g,{classId,time,bob=0,swing=0,charge=0,drawing=false,arrowSkill=null,targeting=false,action=null,blocking=false}){
   g.position.copy(g.userData.base);g.position.y+=bob*.4;
   if(classId==='ranger'){
     g.position.x+=charge*.09;g.position.z-=charge*.06;g.rotation.z=.13-charge*.1;
@@ -60,6 +61,8 @@ export function animateWeapon(g,{classId,time,bob=0,swing=0,charge=0,drawing=fal
     const arrow=g.userData.arrow;arrow.position.z=-.32+charge*.42;arrow.visible=drawing||!!arrowSkill;
     const mat=arrow.userData.tip.material;mat.color.setHex(arrowSkill?.color??0xbcc6b8);mat.emissive.setHex(arrowSkill?.color??0);mat.emissiveIntensity=arrowSkill?1.6:0;
     g.userData.drawHand.position.set(charge*.15,-.04,.05+charge*.42);g.userData.drawHand.visible=drawing;
+  }else if(classId==='warrior'){
+    const p=warriorPose(action,blocking);g.position.add(new THREE.Vector3(p.x,p.y,p.z));g.rotation.copy(g.userData.baseRotation);g.rotation.x+=p.rx;g.rotation.y+=p.ry;g.rotation.z+=p.rz;
   }else{
     g.rotation.z=-.13-Math.sin(swing*Math.PI)*.65;g.position.z-=Math.sin(swing*Math.PI)*.13;
     if(g.userData.gem){g.userData.gem.rotation.y=time*.6;g.userData.gem.material.emissiveIntensity=targeting?2.3:1.1;}

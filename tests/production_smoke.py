@@ -21,6 +21,14 @@ with sync_playwright() as p:
     page.mouse.down();page.wait_for_selector('#draw-indicator:not(.hidden)');page.wait_for_function('document.querySelector("#draw-percent").textContent==="100"')
     page.screenshot(path=str(out/'bow.png'),timeout=120000);page.mouse.up();page.keyboard.press('KeyI');page.wait_for_selector('#overlay:not(.hidden)');assert page.locator('.item-card').count()==3
     page.screenshot(path=str(out/'inventory.png'),timeout=120000)
+    page.click('#close-panel');page.wait_for_function('!!document.pointerLockElement')
+    page.evaluate('() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
+    page.keyboard.down('KeyW')
+    page.wait_for_function('!document.querySelector("#interaction").classList.contains("hidden")&&document.querySelector("#interaction strong").textContent==="레아"')
+    page.keyboard.up('KeyW');page.keyboard.press('KeyE');page.wait_for_selector('[data-quest="road"]')
+    assert '레아' in page.locator('#panel-title').inner_text()
+    page.click('[data-quest="road"]');assert page.locator('[data-quest="road"]').is_disabled()
+    page.screenshot(path=str(out/'npc-dialogue.png'),timeout=120000)
     assert not errors,errors
-    print('PASS production: no dev hook; ranger arrow selection, full draw/release, new inventory and painted icons; zero JS/shader errors',flush=True)
+    print('PASS production: no dev hook; ranger arrow selection, full draw/release, new inventory/icons, actual WASD approach to NPC, E dialogue and quest acceptance; zero JS/shader errors',flush=True)
     browser.close()

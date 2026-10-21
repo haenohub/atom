@@ -75,9 +75,13 @@ with sync_playwright() as p:
     page.mouse.up()
     page.wait_for_function('!window.testMonster.alive', timeout=60000)
     assert page.evaluate('window.__AETHERWILD__.engine.player.stats.kills > window.testKills')
-    assert page.evaluate('window.__AETHERWILD__.engine.player.inventory.slime > 0')
+    assert page.evaluate('window.__AETHERWILD__.engine.player.groundLoot.length') >= 1
+    assert not page.evaluate('!!window.__AETHERWILD__.engine.player.inventory.slime')
+    page.evaluate('''async () => {const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js'),b=e.player.groundLoot[0];e.camera.position.set(b.x,heightAt(b.x,b.z)+1.75,b.z);e.feetY=heightAt(b.x,b.z);}''')
+    page.keyboard.press('KeyE')
+    page.wait_for_function('window.__AETHERWILD__.engine.player.inventory.slime > 0')
     assert page.evaluate('window.__AETHERWILD__.engine.projectiles.length') == 0
-    passed('confirmed ground fire area kills creature, grants XP and loot without projectiles')
+    passed('confirmed ground fire area kills creature, grants XP, drops a bag and E picks up loot without projectiles')
     page.evaluate('window.__AETHERWILD__.engine.player.mana=0;window.__AETHERWILD__.engine.cooldowns[0]=0;')
     page.keyboard.press('Digit1')
     page.wait_for_selector('.toast:text("마나가 부족합니다.")')

@@ -33,7 +33,7 @@ export const SKILLS = {
   ],
 };
 export const BRANCH_SKILLS = {
-  knight: [ { name: '성역', kind: 'sanctuary', cost: 30, cooldown: 24, color: 0xffeeae, description: '체력 50% 회복, 12초 피해 60% 감소.' }, { name: '심판', kind: 'aoe', power: 5.5, range: 14, cost: 40, cooldown: 18, color: 0xffdd84, description: '반경 14m에 550% 신성 피해.' } ],
+  knight: [ { name: '성역', kind: 'sanctuary', cost: 30, cooldown: 24, color: 0xffeeae, description: '체력 50% 회복, 12초 피해 60% 감소.' }, { name: '심판', kind: 'aoe', motion: 'judgment', power: 5.5, range: 14, cost: 40, cooldown: 18, color: 0xffdd84, description: '반경 14m에 550% 신성 피해.' } ],
   berserker: [ { name: '피의 격노', kind: 'rage', cost: 25, cooldown: 25, color: 0xff7777, description: '15초 공격력 60% 증가, 체력 15% 회복.' }, { name: '대지 분쇄', kind: 'freeze', power: 6, range: 15, cost: 40, cooldown: 18, color: 0xe9b172, description: '반경 15m에 600% 피해, 4초 기절.' } ],
   warden: [ { name: '화살비', icon: 'arrowRain', delivery: 'arrow', kind: 'rainArrow', power: 4.5, range: 55, radius: 8, cost: 30, cooldown: 13, color: 0xc4e8a0, description: '다음 화살이 적중한 지점 반경 8m에 화살비, 450% 피해.' }, { name: '폭풍 사격', icon: 'stormArrow', delivery: 'arrow', kind: 'stormArrow', power: 7.5, range: 60, cost: 40, cooldown: 16, color: 0xd9ffbc, description: '전방 60m 관통, 750% 피해.' } ],
   shadow: [ { name: '독화살', icon: 'poisonArrow', delivery: 'arrow', kind: 'poison', power: 2.8, range: 50, cost: 25, cooldown: 10, color: 0xb5ff79, description: '280% 피해와 8초 동안 매초 공격력 45% 맹독 피해.' }, { name: '암살 표식', icon: 'shadowArrow', delivery: 'arrow', kind: 'pierce', power: 9, range: 45, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '전방의 적에게 900% 관통 피해.' } ],
