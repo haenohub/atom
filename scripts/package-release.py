@@ -15,7 +15,13 @@ files=[]
 for name in selected:
     path=root/name
     for file in sorted(path.rglob('*')) if path.is_dir() else [path]:
-        if file.is_file() and '__pycache__' not in file.parts:files.append(file)
+        if file.is_file() and '__pycache__' not in file.parts:
+            # Keep release screenshots current; all historical captures remain in GitHub.
+            if 'screenshots' in file.parts:
+                prefix='v'+version.rsplit('.',1)[0]+'-'
+                showcase={'equipped-warrior','mage-casting','drake','npc-rhea','thornmantis','stormroc','emberarachnid','moonsphinx'}
+                if not file.name.startswith(prefix) or file.stem.removeprefix(prefix) not in showcase:continue
+            files.append(file)
 with zipfile.ZipFile(out.with_suffix('.tmp'),'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
     for file in files:z.write(file,'aetherwild/'+file.relative_to(root).as_posix())
 with zipfile.ZipFile(out.with_suffix('.tmp')) as z:

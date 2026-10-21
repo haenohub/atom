@@ -184,7 +184,7 @@ export class World {
     // Deliberate starter resources and creatures make the first minutes understandable.
     for(const [k,x,z] of [['herb',5,31],['mushroom',-7,26],['wood',10,28],['herb',-12,38],['iron',21,18],['mushroom',-18,18]])this.node(k,x,z,`node-${id++}`);
     this.chest(-13,11,0,1);this.chest(42,-62,1,2);this.chest(-144,-16,2,2);this.chest(144,-60,3,3);this.chest(-112,-218,4,4);this.chest(185,-236,5,5);this.chest(-61,106,6,1);this.chest(69,-117,7,3);
-    const zones=[['slime',0,10,25,9],['wolf',-30,-48,40,7],['spirit',-137,-30,45,7],['boar',86,-9,30,6],['golem',143,-55,42,6],['frostwolf',-107,-190,48,7],['guardian',-95,-239,35,4],['drake',153,-201,42,6]];
+    const zones=[['thornmantis',-48,8,15,4],['abyssserpent',-85,-62,18,3],['moonsphinx',112,-62,20,3],['emberarachnid',188,-186,20,4],['stormroc',-135,-220,18,3],['slime',0,10,25,9],['wolf',-30,-48,40,7],['spirit',-137,-30,45,7],['boar',86,-9,30,6],['golem',143,-55,42,6],['frostwolf',-107,-190,48,7],['guardian',-95,-239,35,4],['drake',153,-201,42,6]];
     for(const [type,cx,cz,spread,count] of zones)for(let i=0;i<count;i++){
       const a=this.rng()*Math.PI*2,r=6+this.rng()*spread;let x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;
       if(isWater(x,z)){x=-75-this.rng()*15;z=-15-this.rng()*50;}
@@ -203,6 +203,7 @@ export class World {
     for(const [i,type]of ['cloudray','windstag','skywarden'].entries()){
       const p=SKY_ISLANDS[[3,6,7][i]];for(let k=0;k<2;k++){this.spawn(type,p.x+(k?2:-2),p.z,`cloud-${i}-${k}`);const m=this.monsters.at(-1);m.island=p;m.group.position.y=p.y;}
     }
+    this.spawn('stormroc',179,142,'cloud-roc');this.monsters.at(-1).island=SKY_ISLANDS[4];this.monsters.at(-1).group.position.y=82;
     for(const [i,n]of [SKY_ISLANDS[0],SKY_ISLANDS[3],SKY_ISLANDS[6]].entries()){this.node(i===1?'frost':'crystal',n.x-3,n.z,`cloud-node-${i}`);this.nodes.at(-1).group.position.y=n.y;}
     this.chest(212,129,8,4);this.chests.at(-1).group.position.y=100;
   }

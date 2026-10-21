@@ -37,11 +37,13 @@ export function animateMonster(m,dt,time){
 }
 export function createNPC(npc){
   const classId=npc.id==='rhea'?'ranger':npc.id==='elia'?'mage':'warrior';
-  const appearance=npc.id==='rhea'?{cloth:0x99b69a,hair:0x6d412c,skin:0xf2d7c4}:npc.id==='elia'?{cloth:0x9cbda8,hair:0xd5d4cb,skin:0xf8e1d3}:{cloth:0xab9279,hair:0x4a332c,skin:0xe4bc9f};
+  const appearance=npc.id==='rhea'?{cloth:0x99b69a,hair:0x6d412c,skin:0xf2d7c4,role:'rhea'}:npc.id==='elia'?{cloth:0x7b8860,hair:0x966f46,skin:0xf8e1d3,role:'elia'}:{cloth:0xab9279,hair:0x4a332c,skin:0xe4bc9f,role:'toren'};
   const g=createAvatar({classId,appearance,equipment:{weapon:classId==='warrior'?'sword':classId==='ranger'?'bow':'staff',armor:`${classId}_basic_armor`,helmet:null,gloves:null,boots:`${classId}_basic_boots`}}),r=g.userData.rig,torso=r.torso,head=r.head;
   g.visible=true;r.weapon.visible=false;g.userData.arms=r.arms;
-  if(npc.id==='toren'){const apron=part(torso,new THREE.PlaneGeometry(.39,.6,8,12),surfaceMaterial('cloth',0xc89b70,{side:THREE.DoubleSide}),[0,-.13,-.175]);apron.rotation.x=-.08;g.scale.set(1.13,1.03,1.08);}
+  if(npc.id==='toren'){const apron=part(torso,new THREE.PlaneGeometry(.39,.6,8,12),surfaceMaterial('cloth',0xc89b70,{side:THREE.DoubleSide}),[0,-.13,-.175]);apron.rotation.x=-.08;g.scale.set(1.04,1.04,1.04);}
+  if(npc.id==='rhea'){const pauldron=part(torso,new THREE.SphereGeometry(.15,24,14,0,Math.PI*2,0,Math.PI*.65),surfaceMaterial('steel',0xb8cbd2),[-.245,.21,0],[1,.6,1.1]);}
   if(npc.id==='elia'){for(const side of [-1,1])part(torso,new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[side*.18,.2,-.14],[side*.12,-.02,-.18],[side*.2,-.3,-.16]].map(v=>new THREE.Vector3(...v))),16,.018,6),surfaceMaterial('cloth',0xa1c5af),[0,0,0]);}
+  if(npc.id==='elia'){const hood=part(head,new THREE.SphereGeometry(.158,32,22,0,Math.PI*2,0,Math.PI*.7),surfaceMaterial('cloth',0x7c8159),[0,.04,.042],[1,1.35,1]);for(const side of [-1,1])for(let i=0;i<4;i++){const flower=part(head,new THREE.SphereGeometry(.017,8,6),new THREE.MeshStandardMaterial({color:0xe9dfb1}),[side*(.1+i*.009),.14-i*.045,-.055]);}}
   const hair=surfaceMaterial('pelt',appearance.hair,{roughness:.95}),ornament=surfaceMaterial('steel',0xd5bb7e);
   const strand=(points,radius)=>part(head,new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(v=>new THREE.Vector3(...v))),24,radius,8),hair,[0,0,0]);
   if(npc.id==='rhea'){

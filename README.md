@@ -1,6 +1,17 @@
 # AETHERWILD · 에테르와일드
 
-자연을 탐험하며 성장하는 **브라우저용 3D 1·3인칭 싱글플레이 판타지 RPG**입니다. 현재 버전은 **v0.5 — Gardens Above the Clouds**입니다. 숲과 호수, 고원, 설산, 잿불 황무지, 구름 정원을 로딩 없이 오갑니다. 3D 모델·지형·식생·무기·이펙트는 직접 코드로 만들고, 전리품·장비·스킬 아이콘 86개, 캐릭터 초상화 6개와 재질 16종, 전투 효과 원화 4종은 이 프로젝트용으로 새로 생성했습니다. 외부 스톡 그래픽 팩은 사용하지 않습니다.
+자연을 탐험하며 성장하는 **브라우저용 3D 1·3인칭 싱글플레이 판타지 RPG**입니다. 현재 버전은 **v0.6 — Forged Forms**입니다. 숲과 호수, 고원, 설산, 잿불 황무지, 구름 정원을 로딩 없이 오갑니다. 3D 모델·지형·식생·무기·이펙트는 직접 코드로 만들고, 전리품·장비·스킬 아이콘 86개, 캐릭터 초상화 6개와 재질 20종, 전투 효과 원화 4종은 이 프로젝트용으로 새로 생성했습니다. 외부 스톡 그래픽 팩은 사용하지 않습니다.
+
+## v0.6 변경 사항
+
+- **아이템별 착용 외형**: 무기 9종·공용 갑옷 3종·직업 방어구 24종을 개별 모델로 표시. 상의와 별도로 투구·장갑·신발의 등급을 판정하며, 장착/해제는 1인칭 장갑·무기와 F1 전신 모델에 즉시 반영
+- **공격 동작**: 전사 3단 기본 베기, 큰 회전과 내려찍기, 0.38초 힘을 모은 뒤 실제로 이동하며 타격하는 돌진참. 마법사는 지팡이를 들어올려 범위 마법을 펼치고 기본 구체를 밀어내며 시전. 궁수는 활 당김과 광역 사격을 구분
+- **프로필에 맞춘 인체**: 약 7.6등신, 어깨·허리·팔꿈치·손목·무릎을 구분. 전사 붉은 망토, 궁수 녹색 후드, 여성 마법사 긴 흑발·별무늬 남색 로브, NPC별 복장과 머리·수염
+- **전체 몬스터 재디자인**: 눈꺼풀·세로 동공·치열·턱·갈기·갑각·석판·깃털·발톱. 비룡의 관자뿔·등비늘·부채형 날개막. 표면 이음새와 곡선/의복 면 방향 보정
+- **신규 몬스터 5종**: 가시 낫사마귀 Lv.6 / 심연 유리뱀 Lv.10 / 월광 스핑크스 Lv.14 / 용암 갑주거미 Lv.16 / 폭풍 왕관조 Lv.19. 기존 12종과 합쳐 총 17종, 각 서식지와 드랍 테이블에 통합
+- **마법사 텔레포트 쿨타임 삭제**: 매회 MP 15와 장애물 판정 유지
+- **그림자사냥꾼 10레벨 스킬 교체**: 독화살 삭제 → 그림자 화살 폭풍. 숫자 4로 즉시 전방 10m 지점의 반경 8m 광역 공격(380%, MP 25, 재사용 10초). 15레벨 암살 표식 유지
+- [모델·장비·모션·신규 생물 설계](docs/FORGED_FORMS.md)
 
 ## v0.5 변경 사항
 
@@ -56,9 +67,9 @@ bash play.sh
 
 ## 화면
 
-![구름 정원](docs/screenshots/v0.5-cloud-garden.png)
+![재디자인한 비룡](docs/screenshots/v0.6-drake.png)
 
-![5개의 저장 칸](docs/screenshots/v0.5-save-slots.png)
+![착용 장비가 반영된 플레이어](docs/screenshots/v0.6-equipped-warrior.png)
 
 ## 실행 패키지 다운로드
 
@@ -110,6 +121,8 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_revision.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_adventure.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_identity.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_cloud_garden.py
+CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_forged_forms.py
+CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_creature_art.py
 ```
 
 `GAME_URL`로 서버 주소, `GAME_ARTIFACTS`로 스크린샷 저장 경로를 바꿀 수 있습니다. 브라우저 테스트는 격리된 브라우저의 테스트 캐릭터를 사용하며, 개발 서버에서만 제공되는 테스트 접근점을 사용합니다. 프로덕션 빌드에는 해당 접근점이 없습니다.
@@ -126,7 +139,7 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_cloud_garden.py
 | R | 마을 귀환 주문서 1개 사용 |
 | Space | 점프, 물에서 헤엄치기 |
 | 왼쪽 Shift | 전사: 대쉬 / 마법사: 텔레포트 / 궁수: 달리기 |
-| 1–5 | 전사 스킬 · 궁수 화살 변경/회복 · 마법사 범위 선택/회복 |
+| 1–5 | 전사 스킬 · 궁수 화살 변경/회복 · 마법사 범위 선택/회복. 그림자사냥꾼 4는 즉시 광역 공격 |
 | E | NPC / 줍기 / 채집 / 상자 / 차원문 / 줄잡기·놓기 |
 | W / S (줄타기 중) | 오르기 / 내려가기 · Space로 뛰어내리기 |
 | Q | 회복약 사용 |
@@ -148,7 +161,7 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_cloud_garden.py
 ## 포함된 시스템
 
 - 결정적 시드로 생성한 640×640m 월드, 최고 100m의 부유섬, 지형별 식생·눈·물·유적과 숨겨진 상자 9개
-- 12종 몬스터, 레벨 1–20, 관절 보행·공격 준비·피격·사망·복귀·재생성, 우두머리, 투사체와 범위 공격
+- 17종 몬스터, 레벨 1–20, 관절 보행·공격 준비·피격·사망·복귀·재생성, 우두머리, 투사체와 범위 공격
 - NPC 3명, 선행 조건이 있는 의뢰 6개, 납품·처치·제작, 직접 보고하는 보상과 진행 저장
 - 물리적으로 떨어지는 전리품 주머니와 E 수거, 미수거 전리품 저장
 - 세 직업, 여섯 2차 전직, 직업별 기본 스킬 3개와 전직별 스킬 2개
@@ -172,6 +185,8 @@ CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_cloud_garden.py
 - `src/ground-loot.js` / `src/loot.js`: 전리품 낙하·수거·직렬화
 - `src/terrain.js` / `src/world.js`: 지형과 직접 제작한 3D 모델
 - `src/equipment-data.js`: 직업별 장비·제작식·능력치 정의
+- `src/gear-visuals.js` / `src/modeling.js`: 아이템별 외형 사양·직접 설계한 단면/곡선/판 메시
+- `src/creature-detail.js`: 17종의 눈·치열·갑각·석판·익막·깃털
 - `src/avatar.js` / `src/camera.js`: 착용 장비를 반영하는 전신 모델·3인칭 카메라
 - `src/spell-art.js` / `src/surfaces.js`: 스킬별 3D 효과·새 재질
 - `src/engine.js`: 이동·물리·전투·상호작용·렌더링

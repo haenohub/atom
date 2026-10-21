@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { bowShot, skillAvailability, isArrowSkill, inSpellArea } from './combat.js';
 import { createWeapon, animateWeapon, makeArrow } from './weapons.js';
 import { Effects } from './effects.js';
-import { warriorAction } from './motion.js';
+import { warriorAction,castAction } from './motion.js';
 import { animateMonster } from './actors.js';
 import { GroundLoot } from './ground-loot.js';
 import { collectDrop } from './loot.js';
@@ -30,7 +30,7 @@ export class GameEngine {
     if(this.quality==='low'){this.renderer.shadowMap.enabled=false;this.renderer.setPixelRatio(.8);}
     this.world=new World(this.scene,this.renderer);this.fx=new Effects(this.scene);this.fields=[];this.loadedArrowIndex=null;this.activeSpellIndex=null;this.drawStartedAt=null;this.bowCharge=0;this.clock=new THREE.Clock();this.time=0;this.lastSave=0;this.active=false;this.player=null;this.locked=false;this.paused=true;this.keys=new Set();this.projectiles=[];this.effects=[];this.damageTexts=[];this.cooldowns=[0,0,0,0,0];this.attackCooldown=0;this.stamina=100;this.swing=0;this.shake=0;this.yaw=0;this.pitch=0;this.vy=0;this.grounded=true;this.fallPeak=0;this.combatUntil=0;this.lastBiome='forest';this.soundOn=false;this.audio=null;this.stepTimer=0;this.frameCount=0;this.frameTime=0;this.fps=0;
     this.camera.position.set(24,heightAt(24,72)+8,72);this.camera.lookAt(-5,heightAt(0,20)+4,-20);
-    this.saveSlot=activeSlot();this.mobilityCooldown=0;this.dash=null;this.climbing=null;this.trajectory=null;this.groundLoot=new GroundLoot(this.scene);this.warriorAction=null;this.combo=0;this.bind();this.animate();
+    this.saveSlot=activeSlot();this.mobilityCooldown=0;this.dash=null;this.climbing=null;this.trajectory=null;this.groundLoot=new GroundLoot(this.scene);this.warriorAction=null;this.castAction=null;this.combo=0;this.bind();this.animate();
   }
   bind() {
     window.addEventListener('resize',()=>{this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.followCamera.aspect=innerWidth/innerHeight;this.followCamera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);});
@@ -59,7 +59,7 @@ export class GameEngine {
     this.player=player;this.active=true;this.paused=false;this.stamina=100;this.attackCooldown=0;this.cooldowns.fill(0);this.keys.clear();this.jumpRequested=false;this.combatUntil=0;this.vy=0;this.grounded=true;this.mobilityCooldown=0;this.dash=null;this.climbing=null;this.inCloudGarden=validSkyPosition(player.position);
     this.cancelActions(true);this.fields=[];this.projectiles.forEach(p=>this.removeObject(p.mesh));this.projectiles=[];this.fx.clear();this.yaw=.08;this.pitch=-.1;const {x,z}=player.position;this.feetY=Math.max(validSkyPosition(player.position)?surfaceAt(x,z,player.position.y+.2):heightAt(x,z),isWater(x,z)?WATER_LEVEL-.8:-Infinity);this.fallPeak=this.feetY;this.camera.position.set(x,this.feetY+1.75,z);
     for(const c of this.world.chests){c.opened=player.opened.includes(c.id);c.beam.visible=!c.opened;c.lid.rotation.x=c.opened?-.8:0;}
-    this.warriorAction=null;this.combo=0;this.groundLoot.clear();for(const drop of player.groundLoot)this.groundLoot.add(drop);
+    this.warriorAction=null;this.castAction=null;this.combo=0;this.groundLoot.clear();for(const drop of player.groundLoot)this.groundLoot.add(drop);
     for(const m of this.world.monsters){m.hp=m.def.hp;m.alive=true;m.group.visible=true;m.x=m.homeX;m.z=m.homeZ;m.group.position.set(m.x,m.island?.y??heightAt(m.x,m.z),m.z);m.aggro=false;m.slow=0;m.freeze=0;m.poison=0;m.poisonTick=0;m.hit=0;m.attackTimer=0;m.attackAge=null;m.returning=false;m.moveSpeed=0;m.deathAge=0;animateMonster(m,0,this.time);}
     this.thirdPerson=player.perspective==='third';this.orbitYaw=0;this.orbitPitch=0;this.buildWeapon();this.lastBiome=biomeAt(x,z);this.events.biome?.(BIOMES.find(b=>b.id===this.lastBiome));this.initAudio();this.requestLock();
   }
@@ -80,7 +80,7 @@ export class GameEngine {
   updateView(dt){
     if(!this.avatar)return;if(!this.active){this.avatar.visible=false;this.weapon.visible=false;return;}
     this.weapon.visible=!this.thirdPerson;this.avatar.position.set(this.camera.position.x,this.feetY,this.camera.position.z);this.avatar.rotation.y=this.yaw;
-    animateAvatar(this.avatar,{time:this.player.playtime,moving:this.isMoving,sprinting:this.isSprinting,jumping:!this.grounded,climbing:!!this.climbing,action:this.warriorAction,charge:this.bowCharge,drawing:this.drawStartedAt!==null,arrowSkill:this.arrowSkill,swing:this.swing,blocking:this.blocking});
+    animateAvatar(this.avatar,{time:this.player.playtime,moving:this.isMoving,sprinting:this.isSprinting,jumping:!this.grounded,climbing:!!this.climbing,action:this.warriorAction,cast:this.castAction,charge:this.bowCharge,drawing:this.drawStartedAt!==null,arrowSkill:this.arrowSkill,swing:this.swing,blocking:this.blocking});
     if(this.thirdPerson){
       const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);const target=this.groundTarget(this.targetedSkill?.range||35),monster=this.aimTarget(60,.98);
       const aim=target.valid?target.point:monster?monster.group.position.clone().add(new THREE.Vector3(0,monster.def.scale,0)):this.camera.position.clone().addScaledVector(dir,35);
@@ -101,7 +101,7 @@ export class GameEngine {
       const old=new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),d=this.travelDirection();let last=old.clone();
       for(let i=1;i<=30;i++){const q=old.clone().addScaledVector(d,i*.2);if(Math.abs(q.x)>310||Math.abs(q.z)>310||heightAt(q.x,q.z)>this.feetY+.6||this.world.colliders.some(c=>Math.hypot(q.x-c.x,q.z-c.z)<c.r+.45&&this.feetY<heightAt(c.x,c.z)+Math.max(3,c.r*5)))break;last=q;}
       if(last.distanceTo(old)<.4){this.notify('앞이 막혀 있습니다.');return;}
-      p.mana-=15;this.mobilityCooldown=2.5;this.camera.position.x=last.x;this.camera.position.z=last.z;this.grounded=false;
+      p.mana-=15;this.mobilityCooldown=0;this.camera.position.x=last.x;this.camera.position.z=last.z;this.grounded=false;
       this.fx.sigil(old.clone().add(new THREE.Vector3(0,1,0)),'teleport',2.5,.55);this.fx.sigil(last.clone().add(new THREE.Vector3(0,1,0)),'teleport',2.5,.55);this.fx.trail(old.clone().add(new THREE.Vector3(0,1,0)),last.clone().add(new THREE.Vector3(0,1,0)),0x9dceff);
     }
   }
@@ -119,7 +119,7 @@ export class GameEngine {
     this.isMoving=moving;this.isSprinting=sprint;
     const speed=(inWater?3.8:sprint?9:5.2)*attributes(p).speedMultiplier*(this.blocking?.55:1),length=Math.hypot(forward,right)||1;forward/=length;right/=length;
     let dx=(-Math.sin(this.yaw)*forward+Math.cos(this.yaw)*right)*speed*dt,dz=(-Math.cos(this.yaw)*forward-Math.sin(this.yaw)*right)*speed*dt;
-    const wasDashing=!!this.dash;if(this.dash){const slice=Math.min(dt,this.dash.remaining);dx=this.dash.direction.x*25*slice;dz=this.dash.direction.z*25*slice;this.dash.remaining-=dt;if(this.dash.remaining<=0)this.dash=null;}
+    const rush=this.dash?.skill?this.dash:null,wasDashing=!!this.dash;if(this.dash){const slice=Math.min(dt,this.dash.remaining);dx=this.dash.direction.x*25*slice;dz=this.dash.direction.z*25*slice;this.dash.remaining-=dt;if(this.dash.remaining<=0)this.dash=null;}
     let nx=clamp(x+dx,-310,310),nz=clamp(z+dz,-310,310);
     if(wasDashing){const length=Math.hypot(nx-x,nz-z),steps=Math.ceil(length/.15);let safeX=x,safeZ=z;
       for(let i=1;i<=steps;i++){const sx=x+(nx-x)*i/steps,sz=z+(nz-z)*i/steps;if(heightAt(sx,sz)>this.feetY+.65||this.world.colliders.some(c=>Math.hypot(sx-c.x,sz-c.z)<c.r+.42&&this.feetY<heightAt(c.x,c.z)+Math.max(3,c.r*5))){this.dash=null;break;}safeX=sx;safeZ=sz;}nx=safeX;nz=safeZ;
@@ -128,6 +128,7 @@ export class GameEngine {
     if(this.grounded&&ground-this.feetY>.65&&slopeAt(nx,nz)>1.15){nx=x;nz=z;}
     for(const c of this.world.colliders){const d=Math.hypot(nx-c.x,nz-c.z),r=c.r+.42;if(d<r&&this.feetY<heightAt(c.x,c.z)+Math.max(3,c.r*5)){const angle=d>.001?Math.atan2(nz-c.z,nx-c.x):0;nx=c.x+Math.cos(angle)*r;nz=c.z+Math.sin(angle)*r;}}
     this.camera.position.x=nx;this.camera.position.z=nz;
+    if(rush)for(const m of this.world.monsters)if(m.alive&&!rush.hitIds.has(m.id)&&this.distanceTo(m)<3.1){rush.hitIds.add(m.id);this.hit(m,attributes(p).attack*rush.skill.power,rush.skill.color);}
     const floor=Math.max(surfaceAt(nx,nz,this.feetY+.15),isWater(nx,nz)?WATER_LEVEL-.7:-Infinity);
     if(this.jumpRequested&&this.grounded){this.vy=inWater?4.7:7.2;this.grounded=false;this.sound(170,.1);}
     this.jumpRequested=false;
@@ -142,7 +143,7 @@ export class GameEngine {
     this.camera.position.y=this.feetY+1.75+bob;
     this.camera.rotation.set(this.pitch+(this.shake>0?(Math.random()-.5)*this.shake*.035:0),this.yaw,0);
     this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,this.blocking&&p.classId==='ranger'?55:sprint?78:72,dt*7);this.camera.updateProjectionMatrix();
-    if(this.weapon)animateWeapon(this.weapon,{classId:p.classId,time:this.time,bob,swing:this.swing,charge:this.bowCharge,drawing:this.drawStartedAt!==null,arrowSkill:this.arrowSkill,targeting:this.activeSpellIndex!==null,action:this.warriorAction,blocking:this.blocking});
+    if(this.weapon)animateWeapon(this.weapon,{classId:p.classId,time:this.time,bob,swing:this.swing,charge:this.bowCharge,drawing:this.drawStartedAt!==null,arrowSkill:this.arrowSkill,targeting:this.activeSpellIndex!==null,action:this.warriorAction,cast:this.castAction,blocking:this.blocking});
     this.swing=Math.max(0,this.swing-dt*3.5);this.shake=Math.max(0,this.shake-dt*3);
     if(moving&&this.grounded){this.stepTimer-=dt;if(this.stepTimer<=0){this.sound(inWater?380:90,.06,'triangle',.012);this.stepTimer=sprint?.3:.48;}}
     const b=biomeAt(nx,nz);if(b!==this.lastBiome){this.lastBiome=b;this.events.biome?.(BIOMES.find(v=>v.id===b));}
@@ -171,9 +172,9 @@ export class GameEngine {
     if(this.player.classId==='ranger'){this.beginBow();return;}
     if(this.player.classId==='mage'){
       if(this.activeSpellIndex!==null){this.castTargetedSpell();return;}
-      this.attackCooldown=.6;this.swing=1;this.shoot({power:attributes(this.player).attack,color:0x9cdcff,kind:'magicOrb',speed:29,range:48,gravity:0});this.sound(280,.16);return;
+      this.attackCooldown=.6;this.swing=1;this.castAction=castAction('orb');this.shoot({power:attributes(this.player).attack,color:0x9cdcff,kind:'magicOrb',speed:29,range:48,gravity:0});this.sound(280,.16);return;
     }
-    this.warriorAction=warriorAction('basic',this.combo++);this.attackCooldown=this.warriorAction.duration;this.sound(180,.1,'triangle');
+    if(this.dash?.skill)this.dash=null;this.warriorAction=warriorAction('basic',this.combo++);this.attackCooldown=this.warriorAction.duration;this.sound(180,.1,'triangle');
   }
   aimTarget(range=55,dot=.97){
     const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);let best=null,score=Infinity;
@@ -193,13 +194,15 @@ export class GameEngine {
     if(isArrowSkill(p,s)){this.loadedArrowIndex=this.loadedArrowIndex===index?null:index;this.notify(this.loadedArrowIndex===null?'일반 화살 장전':`${s.name} 장전 · 좌클릭을 누르고 당긴 뒤 놓아 발사`);return;}
     if(s.targeted){this.activeSpellIndex=this.activeSpellIndex===index?null:index;this.notify(this.activeSpellIndex===null?'시전 취소':`${s.name} · 지면을 겨눈 뒤 좌클릭 · 우클릭 취소`);if(this.activeSpellIndex===null)this.fx.hidePreview();return;}
     this.commitSkill(index);const a=attributes(p);this.notify(s.name);
-    if(p.classId==='warrior'){this.warriorAction={...warriorAction(s.motion||s.kind,this.combo++),skill:s};this.attackCooldown=0;return;}
+    if(p.classId!=='warrior')this.castAction=castAction(s.kind);
+    if(s.kind==='shadowVolley'){const dir=new THREE.Vector3(-Math.sin(this.yaw),0,-Math.cos(this.yaw)),point=new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z).addScaledVector(dir,10);point.y=surfaceAt(point.x,point.z,this.feetY+1);for(const m of this.world.monsters)if(m.alive&&inSpellArea({x:m.x,z:m.z,y:m.group.position.y},point,s.radius,7))this.hit(m,a.attack*s.power,s.color);this.fx.spell(point,s.radius,'shadowVolley',s.color,0,1.4);this.events.change?.();return;}
+    if(p.classId==='warrior'){if(this.dash?.skill)this.dash=null;this.warriorAction={...warriorAction(s.motion||s.kind,this.combo++),skill:s};this.attackCooldown=0;return;}
     if(s.kind==='guard'||s.kind==='sanctuary'){p.buffs.guard=12;if(s.kind==='sanctuary')p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.5);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),4,'sanctuary',s.color,0,1.5);}
     else if(s.kind==='heal'){p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.4);this.burst(this.camera.position,s.color,24);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),3,s.kind,s.color,0,1.2);}
     else if(s.kind==='restore'){p.mana=Math.min(a.maxMana,p.mana+a.maxMana*.45);p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.2);this.burst(this.camera.position,s.color,24);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),3,s.kind,s.color,0,1.2);}
     else if(s.kind==='rage'||s.kind==='blessing'){p.buffs.rage=15;p.hp=Math.min(a.maxHp,p.hp+a.maxHp*(s.kind==='blessing'?1:.15));this.burst(this.camera.position,s.color,24);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),3,s.kind,s.color,0,1.2);}
     else{
-      if(s.kind==='dash')for(let i=0;i<8;i++){const nx=this.camera.position.x-Math.sin(this.yaw)*.7,nz=this.camera.position.z-Math.cos(this.yaw)*.7;if(Math.abs(nx)>310||Math.abs(nz)>310||heightAt(nx,nz)-this.feetY>.8||this.world.colliders.some(c=>Math.hypot(nx-c.x,nz-c.z)<c.r+.5))break;this.camera.position.x=nx;this.camera.position.z=nz;this.feetY=Math.max(heightAt(nx,nz),isWater(nx,nz)?WATER_LEVEL-.7:-Infinity);this.camera.position.y=this.feetY+1.75;}
+
       for(const m of this.world.monsters)if(m.alive&&this.distanceTo(m)<s.range){this.hit(m,a.attack*s.power,s.color);if(s.kind==='freeze')m.freeze=4;}
       this.slash(s.color,s.range);
     }
@@ -208,7 +211,7 @@ export class GameEngine {
     const index=this.activeSpellIndex,s=this.targetedSkill;if(!s)return;
     const error=skillAvailability(this.player,s,this.cooldowns[index]);if(error){this.notify(error);return;}
     const target=this.groundTarget(s.range);if(!target.valid){this.notify('시전 범위 안의 마른 지면을 겨누세요.');return;}
-    this.commitSkill(index);this.createField(target.point,s);this.notify(s.name);this.activeSpellIndex=null;this.fx.hidePreview();
+    this.commitSkill(index);this.castAction=castAction(s.kind);this.createField(target.point,s);this.notify(s.name);this.activeSpellIndex=null;this.fx.hidePreview();
   }
   createField(point,skill){
     const ticks=skill.duration>0?Math.max(1,Math.round(skill.duration/.5)):1;
@@ -225,6 +228,7 @@ export class GameEngine {
   }
   updateCombat(dt){
     this.updateTrajectory();
+    if(this.castAction){this.castAction.age+=dt;if(this.castAction.age>=this.castAction.duration)this.castAction=null;}
     const action=this.warriorAction;
     if(action){action.age+=dt;if(!action.hit&&action.age>=action.impact){action.hit=true;this.resolveWarrior(action);}if(action.age>=action.duration)this.warriorAction=null;}
     if(this.drawStartedAt!==null)this.bowCharge=bowShot((performance.now()-this.drawStartedAt)/1000).charge;
@@ -240,8 +244,8 @@ export class GameEngine {
     if(s.kind==='guard'||s.kind==='sanctuary'){p.buffs.guard=12;if(s.kind==='sanctuary')p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.5);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),4,'sanctuary',color,0,1.5);}
     else if(s.kind==='rage'){p.buffs.rage=15;p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.15);this.burst(this.camera.position,color,24);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),3,'rage',color,0,1.2);}
     else{
-      if(s.kind==='dash')for(let i=0;i<8;i++){const nx=this.camera.position.x-Math.sin(this.yaw)*.7,nz=this.camera.position.z-Math.cos(this.yaw)*.7;if(Math.abs(nx)>310||Math.abs(nz)>310||heightAt(nx,nz)-this.feetY>.8||this.world.colliders.some(c=>Math.hypot(nx-c.x,nz-c.z)<c.r+.5))break;this.camera.position.x=nx;this.camera.position.z=nz;this.feetY=Math.max(heightAt(nx,nz),isWater(nx,nz)?WATER_LEVEL-.7:-Infinity);this.camera.position.y=this.feetY+1.75;}
-      for(const m of this.world.monsters)if(m.alive&&this.distanceTo(m)<s.range){this.hit(m,a.attack*s.power,color);if(s.kind==='freeze')m.freeze=4;}
+      if(s.kind==='dash'){this.dash={direction:new THREE.Vector3(-Math.sin(this.yaw),0,-Math.cos(this.yaw)),remaining:.22,skill:s,hitIds:new Set()};this.fx.ring(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),color,2,.3);}
+      for(const m of this.world.monsters)if(s.kind!=='dash'&&m.alive&&this.distanceTo(m)<s.range){this.hit(m,a.attack*s.power,color);if(s.kind==='freeze')m.freeze=4;}
       this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),s.range,action.kind==='freeze'?'shatter':action.kind,color,0,.5);this.bladeArc(color,action.combo);this.shake=['freeze','judgment'].includes(action.kind)?.35:.12;
     }
     this.events.change?.();

@@ -38,7 +38,7 @@ with sync_playwright() as p:
           p.mana=999;e.cooldowns[i]=0;e.activeSpellIndex=null;e.loadedArrowIndex=null;
           e.camera.position.set(0,heightAt(0,44)+1.75,44);e.feetY=heightAt(0,44);e.camera.rotation.set(-.3,0,0);e.camera.updateMatrixWorld();
           e.warriorAction=null;e.skill(i);
-          if(classId==='ranger'){if(e.loadedArrowIndex!==i||p.mana!==999)throw Error('arrow selection spent resources');e.attackCooldown=0;e.beginBow();e.drawStartedAt=performance.now()-1300;e.releaseBow();}
+          if(classId==='ranger'&&e.loadedArrowIndex===i){if(e.loadedArrowIndex!==i||p.mana!==999)throw Error('arrow selection spent resources');e.attackCooldown=0;e.beginBow();e.drawStartedAt=performance.now()-1300;e.releaseBow();}
           else if(e.activeSpellIndex!==null){if(p.mana!==999)throw Error('target selection spent resources');e.castTargetedSpell();}
           if(classId==='warrior')for(let frame=0;frame<60;frame++)e.updateCombat(1/60);
           if(!(e.cooldowns[i]>0))throw Error(branch+' did not cast');

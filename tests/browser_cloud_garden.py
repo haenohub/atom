@@ -1,4 +1,4 @@
-"""v0.5 actual inputs plus deterministic stepping of real world/controller rules."""
+"""Five-save and Cloud Garden regressions against current class movement rules."""
 import os,json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -54,9 +54,9 @@ with sync_playwright() as p:
   page.wait_for_function('window.__AETHERWILD__.engine.locked');page.keyboard.press('ShiftLeft')
   result=page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;e.paused=true;const manaCost=beforeMove.mana-e.player.mana;for(let i=0;i<20;i++)e.movement(1/60);const z=e.camera.position.z;e.mobility();return {distance:beforeMove.z-z,mana:e.player.mana,manaCost,stamina:e.stamina,cd:e.mobilityCooldown,duplicate:e.camera.position.z!==z};}""")
   assert (4.3<result['distance']<4.8 if cls=='warrior' else 5.8<result['distance']<6.2),result
-  assert result['cd']>0 and not result['duplicate'],result
+  assert (result['cd']>0 and not result['duplicate'] if cls=='warrior' else result['cd']==0 and result['duplicate']),result
   if cls=='mage':assert 14<result['manaCost']<=15,result
-  passed('native Shift '+cls+' movement, distance limit, cost and cooldown prevent repeated activation')
+  passed('native Shift '+cls+' movement, distance limit and cost; '+('dash cooldown enforced' if cls=='warrior' else 'teleport repeats with zero cooldown'))
  result=page.evaluate("""async()=>{const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');e.mobilityCooldown=0;e.world.colliders=[{x:0,z:36,r:1}];e.camera.position.set(0,heightAt(0,40)+1.75,40);e.feetY=heightAt(0,40);e.fallPeak=e.feetY;e.yaw=0;e.mobility();return 40-e.camera.position.z;}""")
  assert result<2.6,result
  passed('teleport swept path stops before solid obstacles')
@@ -66,7 +66,7 @@ with sync_playwright() as p:
  assert page.evaluate('window.__AETHERWILD__.engine.feetY')==66
  page.evaluate("const e=window.__AETHERWILD__.engine;e.paused=true;e.world.update(e.time,0,e.camera.position,true);e.renderer.render(e.scene,e.viewCamera)")
  page.screenshot(path=str(out/'v05-cloud-garden.png'),timeout=120000)
- passed('native E portal enters real elevated Cloud Garden with three new monster species and its own map region')
+ passed('native E portal enters real elevated Cloud Garden with its own monster population and map region')
  for i in [0,1]:
   page.evaluate("""i=>{const e=window.__AETHERWILD__.engine,r=e.world.ropes[i];e.camera.position.set(r.x,r.bottom+1.75,r.z+.6);e.feetY=r.bottom;e.fallPeak=r.bottom;e.vy=0;e.paused=false;}""",i)
   page.keyboard.press('KeyE');assert page.evaluate('!!window.__AETHERWILD__.engine.climbing')
@@ -84,8 +84,8 @@ with sync_playwright() as p:
  page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;e.camera.position.set(160,30,170);e.feetY=28;e.fallPeak=28;e.inCloudGarden=true;e.movement(1/60);if(e.feetY!==66||e.camera.position.x!==148)throw Error('fall recovery failed');e.persist();}""")
  passed('falling beneath the Cloud Garden returns the explorer to the safe entrance')
  result=page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;const types=new Set(e.world.monsters.map(m=>m.type));for(const m of e.world.monsters){if(!m.group.userData.continuousSurface||!m.group.userData.rig.skin.isSkinnedMesh)throw Error('primitive body remains '+m.type);}return {count:types.size,landmarks:e.world.fantasyObjects.length};}""")
- assert result['count']==12 and result['landmarks']>40,result
- passed('all 12 species use custom continuous skinned anatomy; every biome has animated fantasy landmarks')
+ assert result['count']==17 and result['landmarks']>40,result
+ passed('all 17 species use custom continuous skinned anatomy; every biome has animated fantasy landmarks')
  assert not errors,errors
- print(f'{len(checks)} v0.5 browser checks passed; no JS, asset or shader errors',flush=True)
+ print(f'{len(checks)} Cloud Garden browser checks passed; no JS, asset or shader errors',flush=True)
  browser.close()

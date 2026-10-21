@@ -13,7 +13,7 @@ export const BRANCHES = {
   knight: { name: '기사', description: '방어력 +8, 최대 체력 +45. 성역과 심판으로 전장을 지킵니다.', defense: 8, hp: 45 },
   berserker: { name: '광전사', description: '공격력 +12. 격노와 대지 분쇄로 적을 압도합니다.', attack: 12 },
   warden: { name: '레인저', description: '공격력 +7, 최대 체력 +25. 화살비와 폭풍 사격을 사용합니다.', attack: 7, hp: 25 },
-  shadow: { name: '그림자사냥꾼', description: '공격력 +11. 맹독과 암살 표식으로 큰 피해를 줍니다.', attack: 11 },
+  shadow: { name: '그림자사냥꾼', description: '공격력 +11. 그림자 화살 폭풍과 암살 표식을 사용합니다.', attack: 11 },
   archmage: { name: '대마법사', description: '공격력 +10, 최대 마나 +45. 운석과 비전 폭풍을 부릅니다.', attack: 10, mana: 45 },
   elementalist: { name: '원소술사', description: '방어력 +4, 최대 마나 +65. 번개와 정령을 다룹니다.', defense: 4, mana: 65 },
 };
@@ -38,7 +38,7 @@ export const BRANCH_SKILLS = {
   knight: [ { name: '성역', kind: 'sanctuary', cost: 30, cooldown: 24, color: 0xffeeae, description: '체력 50% 회복, 12초 피해 60% 감소.' }, { name: '심판', kind: 'aoe', motion: 'judgment', power: 5.5, range: 14, cost: 40, cooldown: 18, color: 0xffdd84, description: '반경 14m에 550% 신성 피해.' } ],
   berserker: [ { name: '피의 격노', kind: 'rage', cost: 25, cooldown: 25, color: 0xff7777, description: '15초 공격력 60% 증가, 체력 15% 회복.' }, { name: '대지 분쇄', kind: 'freeze', power: 6, range: 15, cost: 40, cooldown: 18, color: 0xe9b172, description: '반경 15m에 600% 피해, 4초 기절.' } ],
   warden: [ { name: '화살비', icon: 'arrowRain', delivery: 'arrow', kind: 'rainArrow', power: 4.5, range: 55, radius: 8, cost: 30, cooldown: 13, color: 0xc4e8a0, description: '다음 화살이 적중한 지점 반경 8m에 화살비, 450% 피해.' }, { name: '폭풍 사격', icon: 'stormArrow', delivery: 'arrow', kind: 'stormArrow', power: 7.5, range: 60, cost: 40, cooldown: 16, color: 0xd9ffbc, description: '전방 60m 관통, 750% 피해.' } ],
-  shadow: [ { name: '독화살', icon: 'poisonArrow', delivery: 'arrow', kind: 'poison', power: 2.8, range: 50, cost: 25, cooldown: 10, color: 0xb5ff79, description: '280% 피해와 8초 동안 매초 공격력 45% 맹독 피해.' }, { name: '암살 표식', icon: 'shadowArrow', delivery: 'arrow', kind: 'pierce', power: 9, range: 45, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '전방의 적에게 900% 관통 피해.' } ],
+  shadow: [ { name: '그림자 화살 폭풍', icon: 'arrowRain', kind: 'shadowVolley', power: 3.8, range: 18, radius: 8, cost: 25, cooldown: 10, color: 0xbc99ec, description: '즉시 전방 10m 지점 반경 8m에 그림자 화살을 쏟아 380% 광역 피해. 활 장전 없이 발동.' }, { name: '암살 표식', icon: 'shadowArrow', delivery: 'arrow', kind: 'pierce', power: 9, range: 45, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '전방의 적에게 900% 관통 피해.' } ],
   archmage: [ { name: '운석 낙하', icon: 'meteor', targeted: true, kind: 'meteorZone', power: 5.5, range: 50, radius: 10, delay: 1.1, duration: 0, cost: 38, cooldown: 13, color: 0xff885a, description: '지면 지정. 1.1초 후 반경 10m에 550% 피해. 좌클릭으로 시전.' }, { name: '비전 폭풍', icon: 'arcaneZone', targeted: true, kind: 'arcaneZone', power: 7, range: 45, radius: 13, delay: .5, duration: 3, cost: 55, cooldown: 20, color: 0xcab1ff, description: '지면 지정. 반경 13m에 3초 동안 총 700% 비전 피해.' } ],
   elementalist: [ { name: '뇌우의 장', icon: 'lightning', targeted: true, kind: 'lightningZone', power: 4.8, range: 45, radius: 11, delay: .45, duration: 0, cost: 32, cooldown: 12, color: 0xa9dfff, description: '지면 지정. 반경 11m 모든 적에게 480% 번개 피해.' }, { name: '정령의 축복', kind: 'blessing', cost: 40, cooldown: 30, color: 0xaaffd7, description: '체력 완전 회복, 15초 공격력 60% 증가.' } ],
 };
@@ -101,6 +101,11 @@ export const BIOMES = [
   { id: 'volcano', name: '잿불 황무지', en: 'EMBERFALL', level: '15–20', x: 163, z: -220, color: '#e1a085' },
 ];
 export const MONSTERS = {
+  thornmantis:{name:'가시 낫사마귀',level:6,hp:155,attack:19,speed:3.8,range:3,color:0x617d46,shape:'mantis',scale:1.1,drops:[['fang',.8,1,2],['herb',1,2,3],['leather',.5,1,2]]},
+  abyssserpent:{name:'심연 유리뱀',level:10,hp:310,attack:29,speed:3.7,range:3.8,color:0x538faf,shape:'serpent',scale:1.3,drops:[['water',1,2,4],['scale',.25,1,2],['crystal',.5,1,3]]},
+  moonsphinx:{name:'월광 스핑크스',level:14,hp:465,attack:39,speed:4.1,range:3.6,color:0xb1a7d1,shape:'sphinx',scale:1.45,drops:[['leather',1,2,4],['relic',.45,1,2],['star',.15,1,1]]},
+  emberarachnid:{name:'용암 갑주거미',level:16,hp:580,attack:45,speed:3.2,range:4,color:0xa75239,shape:'arachnid',scale:1.5,drops:[['fire',1,2,3],['iron',.75,2,4],['scale',.4,1,2]]},
+  stormroc:{name:'폭풍 왕관조',level:19,hp:820,attack:55,speed:4.8,range:4.5,color:0x819fbd,shape:'roc',scale:1.8,drops:[['frost',1,2,4],['star',.3,1,2],['crystal',.6,2,4]]},
   cloudray:{name:'운무 가오리',level:8,hp:210,attack:23,speed:3.4,range:3,color:0xa4d8d3,shape:'ray',scale:1.2,drops:[['water',1,1,3],['crystal',.4,1,2]]},
   windstag:{name:'풍령 사슴',level:13,hp:380,attack:36,speed:4.8,range:3,color:0x82b7ac,shape:'stag',scale:1.25,drops:[['leather',1,2,4],['frost',.4,1,2],['star',.1,1,1]]},
   skywarden:{name:'천공 파수꾼',level:18,hp:720,attack:49,speed:3.1,range:4,color:0x94bfc9,shape:'golem',scale:1.7,drops:[['relic',1,1,3],['star',.3,1,2],['crystal',.8,2,4]]},
