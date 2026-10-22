@@ -50,7 +50,7 @@ with sync_playwright() as p:
  assert result['hp'][0]<10000 and result['hp'][1]<10000 and result['hp'][2]==10000 and result['hp'][3]==10000,result
  assert result['cd']>0 and result['loaded'] is None and result['projectiles']==0 and result['visual'],result
  passed('native Digit4 selects and click confirms delayed shadow level-ten AoE; hits two inside, excludes outside/vertical targets, spends cooldown without loading an arrow')
- result=page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;const types=[...new Set(e.world.monsters.map(m=>m.type))];for(const m of e.world.monsters)if(m.group.userData.designVersion!==8)throw Error('old design '+m.type);return types;}""")
- assert len(result)==17,result
- passed('all 17 species, including five distinct new anatomies, are redesigned and spawned in the playable world')
+ result=page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;const types=[...new Set(e.world.monsters.map(m=>m.type))];for(const m of e.world.monsters)if(m.group.userData.designVersion<8)throw Error('old design '+m.type);return types;}""")
+ assert len(result)==23,result
+ passed('all 23 species, including the six underground designs, are redesigned and spawned in the playable world')
  assert not errors,errors;b.close();print(f'{len(checks)} forged-forms checks passed; no JS/shader/asset errors',flush=True)

@@ -9,7 +9,7 @@ const TAU=Math.PI*2;
 function accessory(parent,geo,mat,pos){const mesh=new THREE.Mesh(geo,mat);mesh.position.set(...pos);mesh.castShadow=true;parent.add(mesh);return mesh;}
 function ribbon(parent,points,width,mat){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p))),positions=[],uv=[],indices=[];for(let i=0;i<=32;i++){const t=i/32,p=curve.getPoint(t),w=width*Math.sin(Math.PI*t)**.6;for(const side of [-1,1]){positions.push(p.x+side*w,p.y,p.z);uv.push(side<0?0:1,t);}if(i<32){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();return accessory(parent,g,mat,[0,0,0]);}
 export function createSculptMonster(type){
-  const d=MONSTERS[type],g=new THREE.Group(),torso=new THREE.Group();g.add(torso);
+  const d=MONSTERS[type],g=new THREE.Group(),torso=new THREE.Group();g.rotation.order='YXZ';g.add(torso);
   const volumes=[],anchors=[[0,0,0]],limbs=[];const v=(x,y,z,rx,ry,rz,b=0)=>volumes.push([x,y,z,rx,ry,rz,b]);
   const bone=(p)=>{anchors.push(p);return anchors.length-1;};let headId=0,tailId=0,wingIds=[],jawId=0;
   const quad=['wolf','boar','drake','stag','sphinx'].includes(d.shape),stone=d.shape==='golem',slime=d.shape==='slime',ray=d.shape==='ray',stag=d.shape==='stag',drake=d.shape==='drake',boar=d.shape==='boar';

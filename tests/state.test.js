@@ -46,7 +46,7 @@ test('save round trip preserves inventory, progression and opened treasures',()=
 });
 test('corrupt saves and unavailable storage are handled',()=>{
   assert.equal(loadPlayer({getItem:()=>'{broken'}),null);assert.equal(loadPlayer({getItem:()=>JSON.stringify({version:99})}),null);assert.equal(savePlayer(createPlayer(),{setItem:()=>{throw Error('full')}}),false);
-  const p=createPlayer();p.level=999;p.hp=-30;p.inventory.health=-10;p.position={x:99999,z:-99999};const loaded=loadPlayer({getItem:()=>JSON.stringify({version:1,player:p})});assert.equal(loaded.level,20);assert.equal(loaded.hp,1);assert.equal(loaded.inventory.health,undefined);assert.equal(loaded.position.x,310);
+  const p=createPlayer();p.level=999;p.hp=-30;p.inventory.health=-10;p.position={x:99999,z:-99999};const loaded=loadPlayer({getItem:()=>JSON.stringify({version:1,player:p})});assert.equal(loaded.level,20);assert.equal(loaded.hp,1);assert.equal(loaded.inventory.health,undefined);assert.equal(loaded.position.x,630);
 });
 test('all item references and recipe results exist',()=>{for(const m of Object.values(MONSTERS))for(const [id]of m.drops)assert.ok(ITEMS[id]);for(const r of RECIPES){assert.ok(ITEMS[r.result]);for(const id of Object.keys(r.needs))assert.ok(ITEMS[id]);}});
 test('terrain is deterministic, continuous and has meaningful elevation and water',()=>{

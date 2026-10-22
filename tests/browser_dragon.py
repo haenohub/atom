@@ -1,0 +1,16 @@
+"""Real dungeon shader, boss telegraph/dodge, and basilisk stamina impact."""
+import os
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+out=Path(os.environ.get('GAME_ARTIFACTS','/tmp/aetherwild-v09'));out.mkdir(exist_ok=True,parents=True)
+with sync_playwright() as p:
+ b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']);page=b.new_page(viewport={'width':1000,'height':680});page.set_default_timeout(180000);errors=[]
+ page.on('pageerror',lambda e:errors.append(str(e)));page.on('console',lambda m:errors.append(m.text) if m.type=='error' else None)
+ page.goto(os.environ.get('GAME_URL','http://127.0.0.1:5173/?quality=low'),wait_until='networkidle',timeout=180000);page.click('#new-game');page.wait_for_function('window.__AETHERWILD__.engine.locked')
+ page.evaluate('''()=>{const a=window.__AETHERWILD__,e=a.engine,p=a.createPlayer('warrior');p.level=20;p.position={realm:'dungeon',x:0,y:-48,z:-15};a.startGame(p);}''');page.wait_for_function('!window.__AETHERWILD__.engine.paused&&!window.__AETHERWILD__.engine.realmTransition')
+ page.evaluate('''async()=>{const {attributes}=await import('/src/state.js');const e=window.__AETHERWILD__.engine;e.paused=true;e.player.hp=attributes(e.player).maxHp;for(const m of e.world.monsters){m.alive=false;m.deathAge=9;}const m=e.world.monsters.find(m=>m.type==='firedragon');m.alive=true;m.freeze=0;m.hit=0;m.breath=null;m.breathCooldown=0;m.x=m.z=m.homeX=m.homeZ=0;m.group.position.set(0,-48,0);m.hp=m.def.hp;e.camera.position.set(0,-46.25,-15);e.camera.lookAt(0,-43,0);e.camera.updateMatrixWorld();e.feetY=-48;e.updateMonsters(.01);if(!m.breath)throw Error('no boss warning');window.boss=m;window.before=e.player.hp;for(let i=0;i<117;i++)e.updateMonsters(1/120);if(e.player.hp!==before)throw Error('damage before telegraph');for(let i=0;i<3;i++)e.updateMonsters(1/120);if(e.player.hp>=before)throw Error('no actual fire damage');e.world.update(e.time,0,e.camera.position,true);}''')
+ page.wait_for_timeout(4000)
+ page.screenshot(path=str(out/'v09-dragon-breath.png'),timeout=180000)
+ page.evaluate('''()=>{const e=window.__AETHERWILD__.engine,hp=e.player.hp,yaw=boss.breath.yaw;e.camera.position.x=20;for(let i=0;i<120;i++)e.updateMonsters(1/120);if(e.player.hp!==hp||boss.breath.yaw!==yaw)throw Error('side dodge or locked aim failed');}''');print('PASS actual dragon 1s warning precedes damage; locked fire cone renders and lateral movement evades repeated damage',flush=True)
+ page.evaluate('''()=>{const e=window.__AETHERWILD__.engine;for(const m of e.world.monsters){m.alive=false;m.deathAge=9;m.breath=null;}e.fx.clear();const m=e.world.monsters.find(m=>m.type==='basilisk');m.alive=true;m.freeze=0;m.attackAge=null;m.attackTimer=0;m.x=m.homeX=0;m.z=m.homeZ=20;m.island={x:0,z:20,y:-48,r:10};m.group.position.set(0,-48,20);e.camera.position.set(0,-46.25,22);e.feetY=-48;e.stamina=100;e.updateMonsters(0);if(m.attackAge!==0)throw Error('no basilisk windup');for(let i=0;i<57;i++)e.updateMonsters(1/120);if(e.stamina!==78)throw Error('basilisk stamina impact missing '+e.stamina);}''');print('PASS basilisk actual telegraphed impact drains 22 stamina',flush=True)
+ assert not errors,errors;b.close();print('2 dungeon combat checks passed; zero JavaScript/shader errors',flush=True)

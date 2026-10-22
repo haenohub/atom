@@ -1,10 +1,13 @@
+import { resetStructureFloors } from './structure-floors.js';
+import { buildExpandedWorld } from './expansion-world.js';
+import { buildDungeon } from './dungeon-world.js';
 import { buildFantasyWorld,updateFantasy } from './fantasy-world.js';
 import { SKY_ISLANDS } from './sky-layout.js';
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { materials, groundMaterial, leafGeometry, grassGeometry, weatheredRock, updateWind, canvasTexture } from './art.js';
-import { heightAt, biomeAt, isWater, seededRandom, WORLD_SIZE, WATER_LEVEL } from './terrain.js';
+import { heightAt, biomeAt, biomeWeights, isWater, seededRandom, WORLD_SIZE, WATER_LEVEL } from './terrain.js';
 import { createMonster, createNPC } from './actors.js';
 import { NPCS } from './quest-data.js';
 import { CAMP, MONSTERS } from './data.js';
@@ -13,8 +16,10 @@ const mat = (c, extra={}) => new THREE.MeshStandardMaterial({ color:c, roughness
 const geos = { rock: weatheredRock(2), sphere: new THREE.SphereGeometry(1,14,10), trunk: new THREE.CylinderGeometry(.65,1,1,12), cone: new THREE.ConeGeometry(1,1,16), cube: new THREE.BoxGeometry(1,1,1) };
 export class World {
   constructor(scene, renderer) {
-    this.scene=scene; this.renderer=renderer; this.rng=seededRandom(); this.colliders=[]; this.nodes=[]; this.chests=[]; this.monsters=[]; this.npcs=[]; this.batches=new Map(); this.fireParticles=[];this.decorationBatches=[];
-    this.ground(); this.decorate(); this.camp(); this.characters(); this.ruins(); this.populate(); this.finishBatches(); this.sky(); buildFantasyWorld(this); this.populateCloud();
+    resetStructureFloors();const previousChildren=new Set(scene.children);this.scene=scene; this.renderer=renderer; this.rng=seededRandom(); this.colliders=[]; this.nodes=[]; this.chests=[]; this.monsters=[]; this.npcs=[]; this.batches=new Map(); this.fireParticles=[];this.decorationBatches=[];
+    this.ground(); this.decorate(); this.camp(); this.characters(); this.ruins(); this.populate();buildExpandedWorld(this);this.finishBatches();this.sky();buildFantasyWorld(this);this.populateCloud();
+    const surfaceRoots=scene.children.filter(o=>!previousChildren.has(o));this.surfaceGroup=new THREE.Group();this.surfaceGroup.name='expanded-overworld';scene.add(this.surfaceGroup);for(const o of surfaceRoots)this.surfaceGroup.add(o);this.surfaceColliders=this.colliders;
+    const beforeDungeon=new Set(scene.children);buildDungeon(this);for(const o of [...scene.children])if(!beforeDungeon.has(o)&&o!==this.dungeonGroup)this.surfaceGroup.add(o);this.setRealm('surface');
   }
   instance(key, geo, material, x,y,z,sx,sy,sz, tint, ry=0) {
     if(['tree-skeleton','tree-leaves','pine-leaves'].includes(key))key+=`-${Math.floor(x/64)}-${Math.floor(z/64)}`;
@@ -31,17 +36,16 @@ export class World {
     this.batches.clear();
   }
   ground() {
-    const g=new THREE.PlaneGeometry(WORLD_SIZE,WORLD_SIZE,256,256); g.rotateX(-Math.PI/2);
+    const g=new THREE.PlaneGeometry(WORLD_SIZE,WORLD_SIZE,512,512); g.rotateX(-Math.PI/2);
     const p=g.attributes.position, colors=[];
     const palette={cloud:[color('#9db4a1'),color('#d7deac')],forest:[color('#688858'),color('#a7b97c')],lake:[color('#6e9278'),color('#aac9a3')],highland:[color('#849467'),color('#c4bc8c')],snow:[color('#c6d9d9'),color('#eef0e3')],volcano:[color('#776e60'),color('#b88a6c')]};
     for(let i=0;i<p.count;i++) {
       const x=p.getX(i),z=p.getZ(i),h=heightAt(x,z);p.setY(i,h);
-      const pair=palette[biomeAt(x,z)],t=.35+this.rng()*.2+Math.sin(x*.11)*Math.cos(z*.09)*.15;
-      const c=pair[0].clone().lerp(pair[1],t);
+      const t=.35+this.rng()*.2+Math.sin(x*.11)*Math.cos(z*.09)*.15,weights=biomeWeights(x,z),c=new THREE.Color(0,0,0);for(const [id,w]of Object.entries(weights))c.add(palette[id][0].clone().lerp(palette[id][1],t).multiplyScalar(w));
       if(Math.abs(x)<3.5+Math.sin(z*.03)*1.8 && z>-160 && z<65) c.lerp(color('#c7ba94'),.66);
       if(h<WATER_LEVEL+.9) c.lerp(color('#cfcca5'),.65);
       if(h>47 && x<10)c.lerp(color('#f2f3e8'),.8);
-      c.lerp(color(0xffffff),.86);colors.push(c.r,c.g,c.b);
+      c.lerp(color(0xffffff),.55);colors.push(c.r,c.g,c.b);
     }
     g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.computeVertexNormals();
     const mesh=new THREE.Mesh(g,groundMaterial());mesh.receiveShadow=true;this.scene.add(mesh);
@@ -49,7 +53,7 @@ export class World {
     const waterMaterial=new THREE.MeshPhysicalMaterial({color:0x486c66,metalness:.16,roughness:.16,transparent:true,opacity:.86,clearcoat:1,clearcoatRoughness:.1,normalMap:materials().ground.normalMap.clone(),normalScale:new THREE.Vector2(.35,.35),side:THREE.DoubleSide});
     waterMaterial.normalMap.repeat.set(24,24);
     waterMaterial.onBeforeCompile=shader=>{shader.uniforms.uWaterTime={value:0};waterMaterial.userData.shader=shader;shader.vertexShader='uniform float uWaterTime;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>\ntransformed.y+=sin(position.x*.4+uWaterTime*.8)*.055+cos(position.z*.31+uWaterTime*.5)*.04;`);};
-    const lake=new THREE.Mesh(waterGeometry,waterMaterial);lake.position.set(-130,WATER_LEVEL,-32);lake.receiveShadow=true;this.scene.add(lake);this.water=lake;
+    const lake=new THREE.Mesh(waterGeometry,waterMaterial);lake.position.set(-130,WATER_LEVEL,-32);lake.receiveShadow=true;this.scene.add(lake);this.water=lake;const outer=lake.clone();outer.geometry=new THREE.CircleGeometry(101,100);outer.geometry.rotateX(-Math.PI/2);outer.position.set(-385,WATER_LEVEL,-15);this.scene.add(outer);
   }
 
   decorate() {
@@ -229,21 +233,22 @@ export class World {
     for(let i=0;i<14;i++){const x=(this.rng()-.5)*100,z=-80-this.rng()*90,y=60+this.rng()*35;verts.push(x-1,y,z,x,y-.3,z,x,y-.3,z,x+1,y,z);}
     birdsGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));this.birds=new THREE.LineSegments(birdsGeo,new THREE.LineBasicMaterial({color:0x46544d}));this.scene.add(this.birds);
   }
+  setRealm(realm){this.realm=realm;this.surfaceGroup.visible=realm!=='dungeon';this.dungeonGroup.visible=realm==='dungeon';this.colliders=realm==='dungeon'?this.dungeonColliders:this.surfaceColliders;}
   animateNPCs(time,dt,viewer){
-    for(const n of this.npcs){const u=n.group.userData;u.torso.rotation.z=Math.sin(time*1.4+n.x)*.018;u.head.rotation.y=Math.sin(time*.65+n.z)*.08;u.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*1.3+i)*.035);u.marker.position.y=2.85+Math.sin(time*2)*.06;if(viewer){const d=Math.hypot(n.x-viewer.x,n.z-viewer.z);if(d<7&&d>.1){const goal=Math.atan2(n.x-viewer.x,n.z-viewer.z),angle=goal-n.group.rotation.y;n.group.rotation.y+=Math.atan2(Math.sin(angle),Math.cos(angle))*Math.min(1,dt*5);}n.group.visible=d<90;u.label.visible=d<18;u.marker.visible=d<45;}}
+    if(this.realm==='dungeon')return;for(const n of this.npcs){const u=n.group.userData;u.torso.rotation.z=Math.sin(time*1.4+n.x)*.018;u.head.rotation.y=Math.sin(time*.65+n.z)*.08;u.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*1.3+i)*.035);u.marker.position.y=2.85+Math.sin(time*2)*.06;if(viewer){const d=Math.hypot(n.x-viewer.x,n.z-viewer.z);if(d<7&&d>.1){const goal=Math.atan2(n.x-viewer.x,n.z-viewer.z),angle=goal-n.group.rotation.y;n.group.rotation.y+=Math.atan2(Math.sin(angle),Math.cos(angle))*Math.min(1,dt*5);}n.group.visible=d<90;u.label.visible=d<18;u.marker.visible=d<45;}}
   }
   update(time, dt, viewer, low=false) {
-    updateFantasy(this,time);
+    updateFantasy(this,time);for(const hub of this.expansionAnimated||[])hub.rotation.z=time*.4;
 
     if(viewer)this.skyDome.position.copy(viewer);
     this.clouds.position.x=Math.sin(time*.004)*18;this.birds.position.x=Math.sin(time*.08)*15;
     this.flame.scale.y=1.6+Math.sin(time*12)*.18;this.fireLight.intensity=18+Math.sin(time*9)*3;
     updateWind(time);this.water.material.normalMap.offset.set(time*.007,time*.004);if(this.water.material.userData.shader)this.water.material.userData.shader.uniforms.uWaterTime.value=time;
     for(const c of this.chests)if(!c.opened)c.beam.material.opacity=.28+Math.sin(time*2)*.15;
-    for(const n of this.nodes)n.group.visible=time>=n.availableAt&&(!viewer||Math.hypot(n.x-viewer.x,n.z-viewer.z)<(low?50:105));
+    for(const n of this.nodes)n.group.visible=(n.realm||'surface')===(this.realm||'surface')&&time>=n.availableAt&&(!viewer||Math.hypot(n.x-viewer.x,n.z-viewer.z)<(low?50:105));
     if(viewer){
-      for(const m of this.monsters){const distance=Math.hypot(m.x-viewer.x,m.z-viewer.z);m.group.visible=(m.alive||(m.deathAge||0)<5)&&distance<(low?65:130);for(const detail of m.group.userData.details||[])detail.visible=distance<(low?22:60);}
-      for(const c of this.chests)c.group.visible=Math.hypot(c.x-viewer.x,c.z-viewer.z)<120;
+      for(const m of this.monsters){const distance=Math.hypot(m.x-viewer.x,m.z-viewer.z);m.group.visible=(m.realm||'surface')===(this.realm||'surface')&&(m.alive||(m.deathAge||0)<5)&&distance<(low?65:130);for(const detail of m.group.userData.details||[])detail.visible=distance<(low?22:60);}
+      for(const c of this.chests)c.group.visible=(c.realm||'surface')===(this.realm||'surface')&&Math.hypot(c.x-viewer.x,c.z-viewer.z)<120;
       for(const b of this.decorationBatches){const range=b.key.startsWith('grass')?(low?45:75):(low?115:225);b.mesh.visible=Math.hypot(b.center.x-viewer.x,b.center.z-viewer.z)<range+b.radius;}
     }
   }

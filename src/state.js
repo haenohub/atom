@@ -1,3 +1,4 @@
+import { WORLD_LIMIT,DUNGEON_FLOOR,validDungeonPosition } from './world-layout.js';
 import { validSkyPosition } from './sky-layout.js';
 import { CLASSES, BRANCHES, ITEMS, RECIPES, MAX_LEVEL, MONSTERS, QUESTS, SAVE_KEY, CAMP } from './data.js';
 import { EQUIPMENT_SLOTS, STAT_NAMES, CLASS_STATS, MAIN_STAT, starterGear } from './equipment-data.js';
@@ -10,7 +11,7 @@ export function createPlayer(classId = 'warrior') {
   const p={ classId, branch: null, level: 1, xp: 0, hp: c.hp, mana: c.mana, gold: 0,
     inventory: { [c.weapon]: 1, health: 5, mana: 3, ...Object.fromEntries(Object.values(starterGear(classId)).map(id=>[id,1])) }, equipment: { weapon: c.weapon, ...starterGear(classId) }, allocations:{strength:0,dexterity:0,intelligence:0,vitality:0}, perspective:'first',
     stats: { kills: 0, gathers: 0, crafts: 0, chests: 0, advanced: 0, boss: 0, alchemy: 0 }, quests: {}, killsByType: {}, groundLoot: [], claimed: [], opened: [],
-    position: { ...CAMP }, buffs: { food: 0, rage: 0, guard: 0 }, playtime: 0 };const a=attributes(p);p.hp=a.maxHp;p.mana=a.maxMana;return p;
+    position: { ...CAMP },flight:null, buffs: { food: 0, rage: 0, guard: 0 }, playtime: 0 };const a=attributes(p);p.hp=a.maxHp;p.mana=a.maxMana;return p;
 }
 export function statPoints(p){return Math.max(0,(p.level-1)*3-Object.values(p.allocations||{}).reduce((sum,n)=>sum+n,0));}
 export function attributes(p) {
@@ -119,7 +120,9 @@ export function loadPlayer(storage = globalThis.localStorage) {
     for (const key of Object.keys(p.stats)) p.stats[key] = Math.floor(finite(raw.stats?.[key],0,1e7,0));
     p.claimed = Array.isArray(raw.claimed) ? [...new Set(raw.claimed.filter(id => QUESTS.some(q => q.id === id)))] : [];
     p.opened = Array.isArray(raw.opened) ? [...new Set(raw.opened.filter(id => typeof id === 'string' && /^chest-\d+$/.test(id)))].slice(0,100) : [];
-    if (raw.position && Number.isFinite(raw.position.x) && Number.isFinite(raw.position.z)) p.position = { x: finite(raw.position.x,-310,310,0), z: finite(raw.position.z,-310,310,44) };
+    if (raw.position && Number.isFinite(raw.position.x) && Number.isFinite(raw.position.z)) p.position = { x: finite(raw.position.x,-WORLD_LIMIT,WORLD_LIMIT,0), z: finite(raw.position.z,-WORLD_LIMIT,WORLD_LIMIT,44) };
+    if(validDungeonPosition(raw.position))p.position={x:raw.position.x,z:raw.position.z,y:DUNGEON_FLOOR,realm:'dungeon'};
+    p.flight=raw.flight&&p.position.realm!=='dungeon'&&Number.isFinite(raw.flight.y)?{y:finite(raw.flight.y,2.3,220,5)}:null;
     if(raw.position&&validSkyPosition(raw.position))p.position.y=raw.position.y;
     let budget=(p.level-1)*3;
     for(const key of Object.keys(STAT_NAMES)){const points=Math.floor(finite(raw.allocations?.[key],0,budget,0));p.allocations[key]=points;budget-=points;}

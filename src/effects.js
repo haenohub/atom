@@ -42,7 +42,7 @@ export class Effects {
   }
   async prepare(renderer,world){
     const staging=new THREE.Scene();staging.fog=world.fog?.clone();staging.environment=world.environment;staging.environmentIntensity=world.environmentIntensity;
-    for(const child of world.children)if(child.isLight)staging.add(child.clone());
+    world.traverseVisible(child=>{if(child.isLight)staging.add(child.clone());});
     for(const [kind,radius,color,delay,duration]of [['meteorZone',10,0xff885a,1.1,0],['arcaneZone',13,0xcab1ff,.5,3]])for(let i=0;i<2;i++){
       const e=this.createSpell(new THREE.Vector3(),radius,kind,color,delay,duration);e.pooled=true;e.inUse=false;e.group.position.x=i*2;e.visual.update(delay*.6,0,1,false);this.pool.push(e);staging.add(e.group);
     }
@@ -54,6 +54,9 @@ export class Effects {
     const target=new THREE.WebGLRenderTarget(32,32),old=renderer.getRenderTarget();
     try{if(renderer.compileAsync)await renderer.compileAsync(staging,camera);else renderer.compile(staging,camera);renderer.setRenderTarget(target);renderer.render(staging,camera);for(const e of this.pool)e.visual.update(e.delay+.1,0,1,true);renderer.render(staging,camera);}finally{renderer.setRenderTarget(old);target.dispose();for(const v of this.warmObjects)staging.remove(v.root);for(const light of staging.children)if(light.isLight)light.shadow?.map?.dispose();for(const e of this.pool){staging.remove(e.group);e.group.position.set(0,0,0);}}
     this.prepared=true;
+  }
+  async warmScene(renderer,world){
+    const staging=new THREE.Scene();staging.fog=world.fog?.clone();staging.environment=world.environment;staging.environmentIntensity=world.environmentIntensity;world.traverseVisible(o=>{if(o.isLight)staging.add(o.clone());});const entries=this.pool.filter(e=>!e.inUse);for(const e of entries)staging.add(e.group);for(const v of this.warmObjects||[])staging.add(v.root);const camera=new THREE.PerspectiveCamera(70,1,.1,150);camera.position.set(15,14,30);camera.lookAt(0,8,0);try{if(renderer.compileAsync)await renderer.compileAsync(staging,camera);else renderer.compile(staging,camera);}finally{for(const e of entries)staging.remove(e.group);for(const v of this.warmObjects||[])staging.remove(v.root);}
   }
   spell(position,radius,kind,color,delay=0,duration=0){
     const pooled=this.pool.find(e=>!e.inUse&&e.spellKind===kind&&e.radius===radius),e=pooled||this.createSpell(position,radius,kind,color,delay,duration);
@@ -72,7 +75,7 @@ export class Effects {
   trail(start,end,color){const geo=new THREE.BufferGeometry().setFromPoints([start.clone(),end.clone()]),mat=new THREE.LineBasicMaterial({color,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,toneMapped:false}),group=new THREE.Line(geo,mat);this.scene.add(group);this.items.push({group,life:.25,max:.25,kind:'line'});}
   update(dt){
     this.time+=dt;
-    for(let i=this.items.length-1;i>=0;i--){const e=this.items[i];if(e.kind==='timedBurst'){if(dt>0){e.age+=dt;e.visibleFrames++;if(e.visibleFrames>8)e.fadeAge+=dt;}const fade=Math.max(0,1-e.fadeAge/.32);e.visual.update(e.age,fade,Math.max(0,Math.min(7,e.visibleFrames-1)));if(e.visibleFrames>=8&&e.fadeAge>=.32){this.dispose(e.group);this.items.splice(i,1);}continue;}e.life-=dt;const age=e.max-e.life,fade=Math.min(1,e.life/.5);
+    for(let i=this.items.length-1;i>=0;i--){const e=this.items[i];if(e.kind==='dragonBreath'){if(!e.owner.alive||!e.owner.breath){this.dispose(e.group);this.items.splice(i,1);}continue;}if(e.kind==='timedBurst'){if(dt>0){e.age+=dt;e.visibleFrames++;if(e.visibleFrames>8)e.fadeAge+=dt;}const fade=Math.max(0,1-e.fadeAge/.32);e.visual.update(e.age,fade,Math.max(0,Math.min(7,e.visibleFrames-1)));if(e.visibleFrames>=8&&e.fadeAge>=.32){this.dispose(e.group);this.items.splice(i,1);}continue;}e.life-=dt;const age=e.max-e.life,fade=Math.min(1,e.life/.5);
       if(e.kind==='particles'){
         const p=e.group.geometry.attributes.position;for(let j=0;j<p.count;j++){p.setXYZ(j,p.getX(j)+e.velocities[j*3]*dt,p.getY(j)+e.velocities[j*3+1]*dt,p.getZ(j)+e.velocities[j*3+2]*dt);e.velocities[j*3+1]-=e.gravity*dt;}p.needsUpdate=true;e.group.material.opacity=Math.min(1,e.life/e.max*1.5);
       }else if(e.kind==='glyph'){e.group.material.uniforms.uTime.value=age;e.group.material.uniforms.uOpacity.value=fade;}

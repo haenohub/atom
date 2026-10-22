@@ -22,11 +22,11 @@ with sync_playwright() as p:
     page.keyboard.press('F1');page.wait_for_function('!window.__AETHERWILD__.engine.thirdPerson&&window.__AETHERWILD__.engine.weapon.visible&&!window.__AETHERWILD__.engine.avatar.visible')
     passed('native F1 switches both ways without teleport; third-person WASD moves the actual player and rig')
     page.evaluate("""async()=>{
-      const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');e.paused=true;e.player.level=20;e.player.mana=999;e.cooldowns.fill(0);e.warriorAction=null;
+      const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js'),{attributes}=await import('/src/state.js');e.paused=true;e.player.level=20;e.player.mana=999;e.cooldowns.fill(0);e.warriorAction=null;
       e.camera.position.set(0,heightAt(0,-14)+1.75,-14);e.feetY=heightAt(0,-14);e.yaw=0;e.pitch=-.15;e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();
       const m=e.world.monsters.find(m=>m.type==='slime');m.x=0;m.z=-17;m.homeX=0;m.homeZ=-17;m.group.position.set(0,heightAt(0,-17),-17);m.hp=10000;m.freeze=100;m.alive=true;m.group.visible=true;window.cancelTarget=m;
       e.attack();const old=e.warriorAction;e.skill(0);if(e.warriorAction===old||e.warriorAction.kind!=='aoe'||e.warriorAction.age!==0)throw Error('basic did not cancel into skill');const mana=e.player.mana;if(!e.cooldowns[0])throw Error('skill cancellation skipped payment');
-      e.attack();if(e.warriorAction.kind!=='basic'||e.warriorAction.age!==0)throw Error('skill did not cancel into basic');e.updateCombat(.2);const hp=m.hp;if(hp===10000||10000-hp>100)throw Error('cancelled AoE leaked damage');e.updateCombat(2);if(m.hp!==hp)throw Error('cancelled action hit later');
+      e.attack();if(e.warriorAction.kind!=='basic'||e.warriorAction.age!==0)throw Error('skill did not cancel into basic');e.updateCombat(.2);const hp=m.hp;const stats=attributes(e.player);if(![stats.attack,Math.round(stats.attack*stats.critMultiplier)].includes(10000-hp))throw Error('cancelled AoE leaked damage '+(10000-hp));e.updateCombat(2);if(m.hp!==hp)throw Error('cancelled action hit later');
       e.skill(1);if(e.warriorAction.kind!=='dash')throw Error('basic recovery blocked skill');e.updateCombat(.2);e.skill(2);if(e.warriorAction.kind!=='guard')throw Error('skill recovery blocked next skill');
       const action=e.warriorAction;e.skill(0);if(e.warriorAction!==action||e.player.mana!==mana-45)throw Error('cooldown failure changed action/resources');e.warriorAction=null;
     }""")
@@ -34,10 +34,10 @@ with sync_playwright() as p:
     page.evaluate('window.__AETHERWILD__.engine.paused=false');page.keyboard.press('KeyI');page.wait_for_selector('#overlay:not(.hidden)')
     page.evaluate("""async()=>{const e=window.__AETHERWILD__.engine,{ITEMS}=await import('/src/data.js');for(const id of Object.keys(ITEMS))e.player.inventory[id]=Math.max(1,e.player.inventory[id]||0);window.__AETHERWILD__.openPanel('inventory');}""")
     assert page.locator('.equipment-slot').count()==5
-    assert page.locator('.item-card [data-item-art]').count()==58
+    assert page.locator('.item-card [data-item-art]').count()==71
     assert page.locator('.drawn-icon').count()==0
     page.screenshot(path=str(out/'inventory.png'),timeout=120000)
-    passed('five equipment slots and all 58 unique painted item images appear in actual inventory UI')
+    passed('five equipment slots and all 71 unique item images appear in actual inventory UI')
     page.click('[data-item="warrior_epic_helmet"]')
     assert page.evaluate('window.__AETHERWILD__.engine.player.equipment.helmet')=='warrior_epic_helmet'
     assert page.evaluate('window.__AETHERWILD__.engine.avatar.userData.equipment.helmet')=='warrior_epic_helmet'
@@ -60,11 +60,11 @@ with sync_playwright() as p:
       e.camera.position.set(drop.x,heightAt(drop.x,drop.z)+1.75,drop.z);e.feetY=heightAt(drop.x,drop.z);e.interact();if(e.player.inventory.recall!==1)throw Error('recall not picked up');
       e.camera.position.set(36,heightAt(36,-30)+1.75,-30);e.feetY=heightAt(36,-30);e.fallPeak=e.feetY;e.vy=0;e.paused=false;window.unrelatedMonster=e.world.monsters.find(m=>m.type==='golem');window.unrelatedMonster.hp=123;
     }""")
-    page.keyboard.press('KeyR');page.wait_for_function('window.__AETHERWILD__.engine.player.inventory.recall===0')
+    page.keyboard.press('KeyI');page.click('[data-item="recall"]');page.wait_for_function('window.__AETHERWILD__.engine.player.inventory.recall===0');page.click('#close-panel');page.wait_for_function('window.__AETHERWILD__.engine.locked')
     assert page.evaluate('Math.hypot(window.__AETHERWILD__.engine.camera.position.x,window.__AETHERWILD__.engine.camera.position.z-44)')<.01
     assert page.evaluate('window.unrelatedMonster.hp')==123
-    page.keyboard.press('KeyR');assert page.evaluate('window.__AETHERWILD__.engine.player.inventory.recall')==0
-    passed('monster rolls a physical recall scroll; pickup then native R consumes once and returns to camp without resetting monsters')
+    assert page.evaluate("window.__AETHERWILD__.engine.useItem('recall').ok")==False;assert page.evaluate('window.__AETHERWILD__.engine.player.inventory.recall')==0
+    passed('monster rolls a physical recall scroll; pickup then the inventory button consumes once and returns to camp without resetting monsters')
     page.evaluate("window.savedWarrior=window.__AETHERWILD__.engine.player")
     for cls in ['warrior','ranger','mage']:
         page.evaluate("""async cls=>{

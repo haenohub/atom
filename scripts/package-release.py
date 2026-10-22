@@ -19,7 +19,7 @@ for name in selected:
             # Keep release screenshots current; all historical captures remain in GitHub.
             if 'screenshots' in file.parts:
                 prefix='v'+version.rsplit('.',1)[0]+'-'
-                showcase={'archer-right','frost-sphere','staff-sweep','meteor-impact','arcane-impact','leap-aim','leap-impact','drake'}
+                showcase={'human-warrior','human-ranger','human-mage','wyvern-flight','dungeon-hall','dragon-breath','region-lake','region-volcano'}
                 if not file.name.startswith(prefix) or file.stem.removeprefix(prefix) not in showcase:continue
             files.append(file)
 with zipfile.ZipFile(out.with_suffix('.tmp'),'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:

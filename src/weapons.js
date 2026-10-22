@@ -1,5 +1,6 @@
+import { humanHand } from './human-anatomy.js';
 import { gearVisual } from './gear-visuals.js';
-import { plate,taperedCurve } from './modeling.js';
+import { plate,taperedCurve,loft } from './modeling.js';
 import * as THREE from 'three';
 import { surfaceMaterial } from './surfaces.js';
 import { materials } from './art.js';
@@ -28,9 +29,9 @@ export function animateStormArrow(root,dt){root.userData.wind.rotation.z+=dt*9;}
 function hand(group,x,y,z,player,side='right'){
   const parent=group;group=new THREE.Group();group.userData.firstPersonHand=true;group.userData.hand=side;group.name=side+'-hand';parent.add(group);group.userData.equipmentId=player.equipment.gloves||null;
   const glove=gearVisual(player.equipment.gloves),leather=glove?surfaceMaterial(player.classId==='warrior'?'steel':player.classId==='mage'?'astral':'cloth',glove.color):materials().leather.clone(),skin=new THREE.MeshStandardMaterial({color:0xb58e72,roughness:.8});
-  const forearm=new THREE.Mesh(new THREE.CylinderGeometry(.045,.064,.37,12),leather);forearm.position.set(x,y-.16,z+.08);forearm.rotation.x=.45;group.add(forearm);
-  const palm=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),leather);palm.scale.set(.055,.085,.05);palm.position.set(x,y,z);group.add(palm);
-  for(let i=0;i<4;i++){const finger=new THREE.Mesh(new THREE.CapsuleGeometry(.012,.052,3,6),skin);finger.position.set(x-.035+i*.023,y+.016,z-.035);finger.rotation.x=.8;group.add(finger);}
+  const forearm=new THREE.Mesh(loft([[0,0,0,.035,.033],[0,-.08,.015,.047,.045],[0,-.22,.055,.06,.052],[0,-.36,.1,.055,.046]],20),leather);forearm.position.set(x,y-.04,z+.035);group.add(forearm);
+  const palm=humanHand(skin,{left:side==='left',glove:glove?leather:null,grip:.85});palm.position.set(x,y-.04,z);palm.rotation.set(.2,0,Math.PI);group.add(palm);
+  const seam=new THREE.Mesh(taperedCurve([[x-.03,y-.1,z+.075],[x-.04,y-.22,z+.105],[x-.035,y-.36,z+.14]],[.002,.002,.001],16,5),new THREE.MeshStandardMaterial({color:0xc3b18f,roughness:.8}));group.add(seam);
   return palm;
 }
 export function createWeapon(player){

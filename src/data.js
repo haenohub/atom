@@ -1,3 +1,4 @@
+import { ABYSS_ITEMS,ABYSS_MONSTERS,ABYSS_RECIPES } from './abyss-data.js';
 import { CREATURE_INFO } from './creature-info.js';
 import { GEAR_ITEMS, GEAR_RECIPES } from './equipment-data.js';
 export const MAX_LEVEL = 20;
@@ -51,6 +52,7 @@ export function skillsFor(player) {
 }
 const material = (name, icon, rarity = 'common') => ({ name, icon, rarity, type: 'material' });
 export const ITEMS = {
+  ...ABYSS_ITEMS,
   ...GEAR_ITEMS,
   recall: {name:'마을 귀환 주문서',type:'consumable',rarity:'uncommon',recall:true,description:'즉시 새벽 야영지로 귀환합니다. 사용 시 1개 소모.'},
   herb: material('야생초', '♧'), mushroom: material('숲 버섯', '♠'), wood: material('단단한 목재', '▥'), iron: material('철광석', '⬡'),
@@ -76,6 +78,7 @@ export const ITEMS = {
   dragonArmor: { name: '비룡 비늘 갑옷', icon: '⬟', rarity: 'epic', type: 'armor', defense: 23, hp: 85, level: 14 },
 };
 export const RECIPES = [
+  ...ABYSS_RECIPES,
   ...GEAR_RECIPES,
   { result: 'ironSword', category: 'smith', needs: { iron: 4, wood: 2, leather: 2 } },
   { result: 'ironBow', category: 'smith', needs: { wood: 5, leather: 3, fang: 1 } },
@@ -93,6 +96,7 @@ export const RECIPES = [
   { result: 'elixir', category: 'alchemy', needs: { frost: 3, star: 1, water: 2 } },
 ];
 export const BIOMES = [
+  {id:'dungeon',name:'심연의 교차로',en:'THE UNDERROOT',level:'8–20',x:0,z:0,color:'#ac8bc8'},
   {id:'cloud',name:'구름 정원',en:'CLOUD GARDEN',level:'8–18',x:170,z:160,color:'#a8dce1'},
   { id: 'forest', name: '새벽의 숲', en: 'DAWNWOOD', level: '1–4', x: 0, z: 50, color: '#8fbe83' },
   { id: 'lake', name: '거울 호수', en: 'MIRROR LAKE', level: '4–7', x: -130, z: -32, color: '#7fc4c1' },
@@ -101,6 +105,7 @@ export const BIOMES = [
   { id: 'volcano', name: '잿불 황무지', en: 'EMBERFALL', level: '15–20', x: 163, z: -220, color: '#e1a085' },
 ];
 export const MONSTERS = {
+  ...ABYSS_MONSTERS,
   thornmantis:{name:'가시 낫사마귀',level:6,hp:155,attack:19,speed:3.8,range:3,color:0x617d46,shape:'mantis',scale:1.1,drops:[['fang',.8,1,2],['herb',1,2,3],['leather',.5,1,2]]},
   abyssserpent:{name:'심연 유리뱀',level:10,hp:310,attack:29,speed:3.7,range:3.8,color:0x538faf,shape:'serpent',scale:1.3,drops:[['water',1,2,4],['scale',.25,1,2],['crystal',.5,1,3]]},
   moonsphinx:{name:'월광 스핑크스',level:14,hp:465,attack:39,speed:4.1,range:3.6,color:0xb1a7d1,shape:'sphinx',scale:1.45,drops:[['leather',1,2,4],['relic',.45,1,2],['star',.15,1,1]]},
@@ -135,5 +140,5 @@ export const QUESTS = [
   { id: 'craft', name: '모험가의 손길', description: '아이템 2회 제작', target: 2, stat: 'crafts', xp: 160, gold: 60 },
   { id: 'treasure', name: '잊힌 자취', description: '보물상자 3개 발견', target: 3, stat: 'chests', xp: 250, gold: 100 },
   { id: 'advance', name: '새로운 길', description: '10레벨 도달 후 야영지에서 2차 전직', target: 1, stat: 'advanced', xp: 400, gold: 150 },
-  { id: 'boss', name: '세계수의 부름', description: '잿불 황무지의 고대 수호자 처치', target: 1, stat: 'boss', xp: 1000, gold: 500 },
+  { id: 'boss', name: '세계수의 부름', description: '고대 수호자 또는 파이어 드래곤 처치', target: 1, stat: 'boss', xp: 1000, gold: 500 },
 ];

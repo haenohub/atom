@@ -1,3 +1,6 @@
+import { createAbyssMonster } from './abyss-models.js';
+import { animateAvatar } from './avatar.js';
+import { applyFacing } from './heading.js';
 import { smoothPhase } from './animation.js';
 import { sculptGeometry } from './sculpt.js';
 import { createAvatar } from './avatar.js';
@@ -7,10 +10,10 @@ import { canvasTexture } from './art.js';
 import { surfaceMaterial } from './surfaces.js';
 function part(parent,geo,mat,pos,scale=[1,1,1]){const mesh=new THREE.Mesh(geo,mat);mesh.position.set(...pos);mesh.scale.set(...scale);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
 function reset(g){g.traverse(o=>{if(o.userData.restPosition){o.position.copy(o.userData.restPosition);o.rotation.copy(o.userData.restRotation);o.scale.copy(o.userData.restScale);}});}
-export function createMonster(type){return createSculptMonster(type);}
+export function createMonster(type){return ['blackslime','basilisk','ghost','darkgolem','shadowguard','firedragon'].includes(type)?createAbyssMonster(type):createSculptMonster(type);}
 export function animateMonster(m,dt,time){
   const g=m.group,r=g.userData.rig;if(!r)return;
-  reset(r.torso);g.rotation.x=0;g.rotation.z=0;g.scale.setScalar(m.def.scale);
+  reset(r.torso);applyFacing(g,m.facingYaw??g.rotation.y);g.scale.setScalar(m.def.scale);
   if(!m.alive){
     m.deathAge=(m.deathAge||0)+dt;const t=smoothPhase(m.deathAge/.85),sink=Math.max(0,m.deathAge-2.5)*.6;
     if(m.def.shape==='slime'){r.torso.scale.set(1+t*.45,1-t*.82,1+t*.45);}
@@ -18,6 +21,7 @@ export function animateMonster(m,dt,time){
     else{g.rotation.z=m.deathSide*t*1.35;r.torso.position.y=-t*.25;for(const leg of r.legs)leg.rotation.x=.7*t;}
     g.position.y=m.deathY-sink;return;
   }
+  if(m.def.shape==='sentinel'){if(m.freeze>0)return;animateAvatar(g,{dt,time,moving:(m.moveSpeed||0)>.1,sprinting:false,jumping:false,climbing:false,action:m.attackAge!=null?{kind:'basic',combo:0,age:m.attackAge,impact:.46,duration:.85}:null});return;}
   if(r.skin){r.skin.material.emissive.setHex(0xffd5a3);r.skin.material.emissiveIntensity=m.hit>0?Math.max(0,(m.hit-.18)/.14)*.65:0;}
   if(m.freeze>0)return;
   const phase=time*(m.aggro?10:5)+(m.homeX||0),targetWalk=Math.min(1,(m.moveSpeed||0)/Math.max(1,m.def.speed)),walk=m.motionBlend=dt>0?THREE.MathUtils.lerp(m.motionBlend||0,targetWalk,1-Math.exp(-dt*18)):targetWalk,breath=Math.sin(time*2+m.homeZ);

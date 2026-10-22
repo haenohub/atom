@@ -22,8 +22,8 @@ export class GroundLoot {
     this.bags.set(drop.id,{...drop,group,floor,vy:falling?2.6:0,settled:!falling,bounces:0,mote,glow,cards});
   }
   remove(id){const b=this.bags.get(id);if(!b)return;this.scene.remove(b.group);b.group.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});this.bags.delete(id);}
-  update(dt,time,viewer){for(const b of this.bags.values()){
+  update(dt,time,viewer,realm='surface'){for(const b of this.bags.values()){
     if(!b.settled){b.vy-=18*dt;b.group.position.y+=b.vy*dt;b.group.rotation.z+=dt*2;if(b.group.position.y<=b.floor){b.group.position.y=b.floor;b.vy=-b.vy*.24;if(++b.bounces>=2){b.settled=true;b.group.rotation.z=0;}}}
-    b.mote.position.y=.75+Math.sin(time*3)*.07;b.mote.rotation.y=time;b.glow.material.opacity=.4+Math.sin(time*2)*.15;b.group.visible=Math.hypot(b.x-viewer.x,b.z-viewer.z)<65;
+    b.mote.position.y=.75+Math.sin(time*3)*.07;b.mote.rotation.y=time;b.glow.material.opacity=.4+Math.sin(time*2)*.15;b.group.visible=(b.realm||'surface')===realm&&Math.hypot(b.x-viewer.x,b.z-viewer.z)<65;
   }}
 }

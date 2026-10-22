@@ -1,0 +1,14 @@
+const material=(name,rarity='uncommon')=>({name,rarity,type:'material'});
+export const ABYSS_ITEMS={
+ blackGel:material('검은 응결 점액'),basiliskVenom:material('바실리스크 독낭'),basiliskEye:material('석화의 홍채','rare'),ghostSilk:material('망령의 수의'),soulWisp:material('푸른 영혼불','rare'),darkOre:material('심연 흑철'),voidCore:material('공허의 핵','epic'),guardSeal:material('파수병의 봉인','rare'),dragonScale:material('화룡의 역린','epic'),dragonEmber:material('영겁의 잿불','legendary'),dragonHeart:material('파이어 드래곤의 심장','legendary'),
+ abyssElixir:{name:'심연 정화 영약',rarity:'epic',type:'consumable',heal:.8,mana:.8,buff:300,description:'체력·마나 80% 회복, 300초 공격력 +20%.'},dragonFeast:{name:'화룡의 만찬',rarity:'legendary',type:'consumable',heal:1,mana:1,buff:600,description:'체력·마나 완전 회복, 600초 공격력 +20%.'}
+};
+export const ABYSS_RECIPES=[{result:'abyssElixir',category:'alchemy',needs:{blackGel:3,basiliskEye:1,soulWisp:2}},{result:'dragonFeast',category:'cooking',needs:{dragonHeart:1,meat:5,herb:5}}];
+export const ABYSS_MONSTERS={
+ blackslime:{name:'블랙 슬라임',level:8,hp:230,attack:24,speed:2.5,range:2.8,color:0x272637,shape:'slime',design:'blackslime',scale:1.15,habitat:'지하 던전 · 뿌리 하수로',description:'흑요석 같은 점액막 안에 녹지 않은 뼛조각과 금빛 독기 방울이 떠다닌다. 낮게 수축한 뒤 몸 전체를 튕겨 공격한다.',drops:[['blackGel',1,2,4],['slime',.75,1,3],['basiliskVenom',.12,1,1]]},
+ basilisk:{name:'바실리스크',level:12,hp:440,attack:37,speed:3.8,range:4,color:0x658468,shape:'basilisk',scale:1.2,habitat:'지하 던전 · 수몰 수도원과 지열 갱도',description:'여섯 다리, 부채 모양 볏, 옆으로 난 황금 눈과 독낭을 가진 파충류. 예고한 시선 공격은 기력을 흐트러뜨린다.',drops:[['basiliskVenom',1,1,3],['basiliskEye',.3,1,1],['scale',.45,1,2]]},
+ ghost:{name:'고스트',level:13,hp:380,attack:38,speed:3.4,range:3.5,color:0x8db4ce,shape:'spirit',design:'ghost',scale:1.2,habitat:'지하 던전 · 얼어붙은 납골당',description:'찢긴 수의 아래 골격 손과 속이 빈 후드, 가슴 안의 푸른 영혼불. 부유하며 손을 펼쳐 냉기를 모은다.',drops:[['ghostSilk',1,1,3],['soulWisp',.5,1,2],['water',.4,1,2]]},
+ darkgolem:{name:'다크 골렘',level:16,hp:820,attack:49,speed:2.5,range:4.5,color:0x3d354d,shape:'golem',design:'darkgolem',scale:1.65,habitat:'지하 던전 · 바람 광산과 지열 제련소',description:'층층이 갈라진 흑철 석판, 사슬 관절, 노출된 보라색 공허 핵. 무거운 주먹을 모아 지면에 충격파를 만든다.',drops:[['darkOre',1,2,5],['voidCore',.18,1,1],['crystal',.55,1,3]]},
+ shadowguard:{name:'어둠의 파수병',level:18,hp:940,attack:57,speed:3.6,range:4,color:0x505262,shape:'sentinel',scale:1.2,habitat:'지하 던전 · 천공 봉인 회랑',description:'검은 판금의 기사와 좁은 붉은 시선, 찢어진 망토, 장검과 룬 방패. 방패 뒤에서 검을 들어 베어낸다.',drops:[['guardSeal',1,1,2],['darkOre',.8,2,4],['voidCore',.22,1,1]]},
+ firedragon:{name:'파이어 드래곤',level:20,hp:5800,attack:82,speed:3.2,range:7,color:0x9b4132,shape:'dragon',scale:2.15,boss:true,habitat:'지하 던전 중앙 · 영겁의 화로',description:'네 발과 거대한 익막, 뒤로 휘어진 관자뿔, 이중 턱과 불타는 가슴 균열. 부채꼴 화염 숨결은 지면 예고 후 발사되므로 옆으로 피해야 한다.',drops:[['dragonScale',1,4,7],['dragonEmber',1,1,2],['dragonHeart',.35,1,1],['voidCore',1,2,4]]}
+};

@@ -11,5 +11,5 @@ export class PoseInterpolator{
  render(alpha){for(const {object,previous:a,current:b}of this.tracks){object.position.lerpVectors(a.p,b.p,alpha);object.quaternion.slerpQuaternions(a.q,b.q,alpha);object.scale.lerpVectors(a.s,b.s,alpha);}}
  restore(){for(const {object,current:c}of this.tracks){object.position.copy(c.p);object.quaternion.copy(c.q);object.scale.copy(c.s);}}
 }
-export function articulatedObjects(root){const list=[root],r=root?.userData.rig;if(!r)return list;for(const key of ['torso','hips','head','jaw','tail','core','halo','weapon'])if(r[key])list.push(r[key]);for(const key of ['arms','elbows','hands','legs','knees','wings','orbs'])if(r[key])list.push(...r[key]);if(r.weapon?.userData.drawHand)list.push(r.weapon.userData.drawHand);return list;}
+export function articulatedObjects(root){const list=[root],r=root?.userData.rig;if(!r)return list;for(const key of ['torso','hips','head','jaw','tail','core','halo','weapon'])if(r[key])list.push(r[key]);for(const key of ['arms','elbows','hands','legs','knees','feet','fingers','wings','orbs'])if(r[key])list.push(...r[key]);if(r.weapon?.userData.drawHand)list.push(r.weapon.userData.drawHand);return list;}
 export function smoothPhase(t){t=Math.max(0,Math.min(1,t));return t*t*t*(t*(t*6-15)+10);}
