@@ -1,0 +1,64 @@
+name: Play AETHERWILD
+
+on:
+  push:
+    branches:
+      - codex/aetherwild-v0.1.0
+    paths-ignore:
+      - 'docs/**'
+      - 'downloads/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check game rules
+        run: npm test
+      - name: Build the browser game
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Publish the game
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: First deployment setup help
+        if: failure()
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          If Pages has not been enabled yet, open [Settings → Pages](https://github.com/${REPOSITORY}/settings/pages), choose **GitHub Actions** under **Build and deployment → Source**, then **Re-run all jobs** on this run.
+
+          Future game updates on `codex/aetherwild-v0.1.0` publish automatically. If Pages is already enabled, check the failed step above for the deployment error.
+          EOF

@@ -1,5 +1,7 @@
 # AETHERWILD v0.6 — 게임 다운로드
 
+설치 없이 플레이하려면 **[웹 플레이 주소](https://haenohub.github.io/atom/)**를 사용하세요. 최초 한 번 [GitHub Pages 활성화](../docs/PLAY_ONLINE.md) 후에는 업데이트도 같은 주소에 자동 반영됩니다. 아래 ZIP은 내려받아 직접 실행할 때 사용합니다.
+
 **[AETHERWILD-v0.6.0.zip 바로 다운로드](https://github.com/haenohub/atom/raw/refs/heads/codex/aetherwild-v0.1.0/downloads/AETHERWILD-v0.6.0.zip)**
 
 파일 화면이 열리면 **Download raw file**(다운로드 아이콘)을 누르세요. 소스 코드, 빌드된 게임, 새 그래픽 에셋, 개발 문서, 테스트와 실행 안내가 들어 있습니다.

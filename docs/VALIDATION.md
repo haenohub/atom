@@ -41,3 +41,9 @@ Chromium + SwiftShader에서 브라우저 테스트를 순차 실행했다. 개�
 - ZIP을 `/tmp/aetherwild-v06-clean`의 새 폴더에 해제했다. `node_modules`가 없는 상태에서 빌드 지문이 일치했고 `bash play.sh 4220`이 설치/재빌드 없이 실행되어 HTTP 200을 반환했다.
 - 해제한 `aetherwild/dist`를 중첩 URL 경로에서 열어 `production_smoke.py`를 실행했다. 2번 칸 궁수 생성, 화살 스킬 선택·최대 당김·발사, F1 양방향 전환, 투구 해제/장착, 능력치 버튼, 실제 WASD로 레아 접근·E 대화·의뢰 수락이 통과했다. 개발 접근점은 없고 JavaScript·셰이더·이미지 오류가 없었다.
 - 검증 기록을 갱신해 최종 ZIP을 다시 만들고 CRC·SHA-256·빌드 지문을 확인했다. 최종 ZIP의 `src`/`public`/`dist`/실행 스크립트는 실제 브라우저에서 검사한 패키지와 바이트 단위로 동일하다.
+
+## 웹 자동 배포 구성 확인
+
+2026-10-22 (Asia/Seoul): `.github/workflows/pages.yml`의 YAML, 대상 브랜치, 검사 후 배포 의존 관계와 최소 권한 설정을 확인했다. 규칙 검사 136개와 빌드를 다시 통과했고, GitHub Pages와 같은 `/atom/` 경로에 배포 산출물을 놓고 `production_smoke.py`의 실제 입력 검사를 통과했다. 개발 접근점 없이 활 발사·F1·장비·NPC 대화가 작동하며 이미지·JavaScript·셰이더 오류가 없다.
+
+GitHub 관리 API와 `github.io` 호스트는 이 작업 환경의 네트워크에서 접근이 차단되어 있다. 로컬 배포 산출물 검증과 실제 Pages 활성화/원격 게시 확인은 구분한다. 최초 Pages 활성화와 배포 완료 확인 방법은 `docs/PLAY_ONLINE.md`에 안내한다.
