@@ -4,6 +4,7 @@ import { buildSpellVisual } from './spell-art.js';
 import { materials } from './art.js';
 import { surfaceAt } from './terrain.js';
 import { particleTexture } from './art.js';
+import { makeArrow } from './weapons.js';
 const TAU=Math.PI*2;
 const glyphVertex=`varying vec2 vGlyphUv;void main(){vGlyphUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
 const glyphFragment=`uniform vec3 uColor;uniform float uTime;uniform float uOpacity;uniform float uPreview;varying vec2 vGlyphUv;
@@ -19,6 +20,10 @@ export class Effects {
     const p=mesh.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,surfaceAt(point.x+x,point.z+z,point.y+.7)-point.y+.075);}p.needsUpdate=true;
   }
   hidePreview(){if(this.preview)this.preview.visible=false;}
+  bowShot(position,direction,color){
+    const group=makeArrow(color,true);group.scale.set(2.2,2.2,1.65);group.position.copy(position);group.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),direction);this.scene.add(group);
+    this.items.push({group,kind:'bowShot',velocity:direction.clone().multiplyScalar(22),life:.4,max:.4});
+  }
   particles(position,color,count=24,options={}){
     const geo=new THREE.BufferGeometry(),positions=new Float32Array(count*3),velocities=new Float32Array(count*3),colors=new Float32Array(count*3),c=new THREE.Color(color);
     for(let i=0;i<count;i++){const a=Math.random()*TAU,r=options.radius?Math.sqrt(Math.random())*options.radius:0;positions[i*3]=Math.cos(a)*r;positions[i*3+1]=Math.random()*.3;positions[i*3+2]=Math.sin(a)*r;
@@ -55,6 +60,7 @@ export class Effects {
         if(age>=e.delay&&!e.triggered){e.triggered=true;this.particles(e.group.position,e.color,70,{radius:e.radius*.8,up:e.spellKind==='fireZone'?2.8:5,speed:3,life:1.3,size:.22});}
         if(e.spellKind==='fireZone'||e.spellKind==='arcaneZone')if(e.triggered&&Math.random()<dt*10)this.particles(e.group.position,e.color,7,{radius:e.radius*.8,up:2.6,speed:.7,gravity:-.4,life:1,size:.13});
 
+      }else if(e.kind==='bowShot'){e.group.position.addScaledVector(e.velocity,dt);
       }else if(e.kind==='impact'){
         e.pieces.forEach(({mesh,velocity})=>{mesh.position.addScaledVector(velocity,dt);velocity.y-=8*dt;mesh.rotation.x+=dt*5;mesh.scale.multiplyScalar(Math.max(0,1-dt*1.1));mesh.material.opacity=fade;});
       }else if(e.kind==='sweep'){e.group.material.opacity=fade;e.group.scale.multiplyScalar(1+dt*.7);}

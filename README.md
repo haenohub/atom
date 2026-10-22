@@ -1,12 +1,22 @@
 # AETHERWILD · 에테르와일드
 
-자연을 탐험하며 성장하는 **브라우저용 3D 1·3인칭 싱글플레이 판타지 RPG**입니다. 현재 버전은 **v0.6 — Forged Forms**입니다. 숲과 호수, 고원, 설산, 잿불 황무지, 구름 정원을 로딩 없이 오갑니다. 3D 모델·지형·식생·무기·이펙트는 직접 코드로 만들고, 전리품·장비·스킬 아이콘 86개, 캐릭터 초상화 6개와 재질 20종, 전투 효과 원화 4종은 이 프로젝트용으로 새로 생성했습니다. 외부 스톡 그래픽 팩은 사용하지 않습니다.
+자연을 탐험하며 성장하는 **브라우저용 3D 1·3인칭 싱글플레이 판타지 RPG**입니다. 현재 버전은 **v0.7 — Wind & Shadow**입니다. 숲과 호수, 고원, 설산, 잿불 황무지, 구름 정원을 로딩 없이 오갑니다. 3D 모델·지형·식생·무기·이펙트는 직접 코드로 만들고, 전리품·장비·스킬 아이콘 86개, 캐릭터 초상화 6개와 재질 20종, 전투 효과 원화 4종은 이 프로젝트용으로 새로 생성했습니다. 외부 스톡 그래픽 팩은 사용하지 않습니다.
 
 ## 터미널 없이 플레이
 
 **[웹에서 게임 열기](https://haenohub.github.io/atom/)** — 최초 GitHub Pages 활성화 후 사용할 수 있습니다. 이후에는 이 주소만 열면 됩니다. 게임 업데이트를 올리면 자동 검사와 빌드를 거쳐 같은 주소에 반영합니다.
 
 최초 한 번: [Settings → Pages](https://github.com/haenohub/atom/settings/pages) → **Source: GitHub Actions**. 활성화 전에 실패한 배포는 [Play AETHERWILD](https://github.com/haenohub/atom/actions/workflows/pages.yml)의 최근 실행에서 **Re-run all jobs**를 누르세요. [설정과 기존 세이브 이전 안내](docs/PLAY_ONLINE.md).
+
+## v0.7 변경 사항
+
+- **오른손잡이 궁수**: 왼손으로 활을 잡고 오른손으로 시위·화살을 오른쪽 뺨까지 당김. 1·3인칭 동작에 반영
+- **서리화살**: 적중한 적 중심 반경 5m 서리 폭발, 모든 대상에게 피해와 6초 둔화
+- **그림자 화살 폭풍 / 화살비**: 4번으로 지면 범위 선택 → 좌클릭 확정. 각각 바닥/하늘로 활을 쏜 뒤 0.3초 후 지정 범위에서 화살 상승/하강. 우클릭 취소
+- **암살 표식**: 5번으로 장전. 첫 적중 후 매번 10m 내 새 적에게 최대 5회 추가 도약, 같은 대상 재적중 없음
+- **폭풍 사격**: 중력 없는 직선 화살과 회전하는 바람. 경로 반경 6m의 모든 적에게 각각 한 번 피해를 주고 중심으로 끌어당김
+- **마법사**: 팔과 지팡이를 바깥에서 안으로 휘두르는 공격·시전 동작, 텔레포트 재사용 0.5초
+- [변경된 조작·정확한 시간·피해·충돌 규칙](docs/WIND_SHADOW.md)
 
 ## v0.6 변경 사항
 
@@ -73,9 +83,9 @@ bash play.sh
 
 ## 화면
 
-![재디자인한 비룡](docs/screenshots/v0.6-drake.png)
+![폭풍 사격](docs/screenshots/v0.7-storm-shot.png)
 
-![착용 장비가 반영된 플레이어](docs/screenshots/v0.6-equipped-warrior.png)
+![솟구치는 그림자 화살](docs/screenshots/v0.7-shadow-area.png)
 
 ## 실행 패키지 다운로드
 
@@ -123,6 +133,7 @@ python3 -m pip install playwright
 # 시스템 Chromium이 없다면 설치 후 CHROMIUM_PATH에 실행 파일 경로를 지정하세요.
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_smoke.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_combat.py
+CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_wind_shadow.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_revision.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_adventure.py
 CHROMIUM_PATH=/usr/bin/chromium python3 tests/browser_identity.py

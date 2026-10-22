@@ -10,7 +10,7 @@ subprocess.run(['node','scripts/build-meta.js','--check'],cwd=root,check=True)
 version=json.loads((root/'package.json').read_text())['version']
 out=root/'downloads'/f'AETHERWILD-v{version}.zip'
 out.parent.mkdir(exist_ok=True)
-selected=['.gitignore','README.md','THIRD_PARTY_NOTICES.md','package.json','package-lock.json','index.html','vite.config.js','play.sh','src','docs','tests','scripts','public','dist','downloads/README.md']
+selected=['.github','.gitignore','README.md','THIRD_PARTY_NOTICES.md','package.json','package-lock.json','index.html','vite.config.js','play.sh','src','docs','tests','scripts','public','dist','downloads/README.md']
 files=[]
 for name in selected:
     path=root/name
@@ -19,7 +19,7 @@ for name in selected:
             # Keep release screenshots current; all historical captures remain in GitHub.
             if 'screenshots' in file.parts:
                 prefix='v'+version.rsplit('.',1)[0]+'-'
-                showcase={'equipped-warrior','mage-casting','drake','npc-rhea','thornmantis','stormroc','emberarachnid','moonsphinx'}
+                showcase={'right-handed','frost-burst','shadow-pose','shadow-area','warden-pose','warden-area','storm-shot','mage-sweep'}
                 if not file.name.startswith(prefix) or file.stem.removeprefix(prefix) not in showcase:continue
             files.append(file)
 with zipfile.ZipFile(out.with_suffix('.tmp'),'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:

@@ -9,9 +9,9 @@ test('bow starts weak and full draw increases actual speed and damage',()=>{
 });
 test('bow charge is bounded and increases monotonically',()=>{assert.equal(bowShot(-9).charge,0);assert.equal(bowShot(99).charge,1);let last=0;for(let i=0;i<30;i++){const c=bowShot(i*.06).charge;assert.ok(c>=last);assert.ok(c>=0&&c<=1);last=c;}});
 test('half draw is distinct from tap and full draw',()=>{const mid=bowShot(BOW_DRAW_SECONDS*.5);assert.equal(mid.charge,.5);assert.ok(mid.speed>bowShot(0).speed&&mid.speed<bowShot(100).speed);});
-test('ranger offensive skills are arrow modifiers, healing remains instant',()=>{
+test('ranger distinguishes arrow modifiers, ground areas and instant healing',()=>{
   const p=createPlayer('ranger');for(const s of SKILLS.ranger.filter(s=>s.power))assert.equal(isArrowSkill(p,s),true);
-  for(const b of CLASSES.ranger.branches)for(const s of BRANCH_SKILLS[b])if(s.kind!=='shadowVolley')assert.equal(s.delivery,'arrow');assert.equal(isArrowSkill(p,BRANCH_SKILLS.shadow[0]),false);assert.equal(BRANCH_SKILLS.shadow[0].kind,'shadowVolley');assert.equal(BRANCH_SKILLS.shadow[0].radius,8);assert.equal(isArrowSkill(p,SKILLS.ranger[2]),false);assert.equal(isArrowSkill(createPlayer('mage'),SKILLS.ranger[0]),false);
+  for(const b of CLASSES.ranger.branches)for(const s of BRANCH_SKILLS[b])if(s.targeted)assert.equal(isArrowSkill(p,s),false);else assert.equal(s.delivery,'arrow');assert.equal(isArrowSkill(p,BRANCH_SKILLS.shadow[0]),false);assert.equal(BRANCH_SKILLS.shadow[0].kind,'shadowVolley');assert.equal(BRANCH_SKILLS.shadow[0].radius,8);assert.equal(isArrowSkill(p,SKILLS.ranger[2]),false);assert.equal(isArrowSkill(createPlayer('mage'),SKILLS.ranger[0]),false);
 });
 test('all mage offensive base and advancement skills are ground areas',()=>{
   for(const s of [...SKILLS.mage,...BRANCH_SKILLS.archmage,...BRANCH_SKILLS.elementalist])if(s.power){assert.equal(s.targeted,true);assert.ok(s.radius>0&&s.range>s.radius);assert.ok(s.delay>=0);assert.notEqual(s.delivery,'arrow');assert.notEqual(s.kind,'fire');}

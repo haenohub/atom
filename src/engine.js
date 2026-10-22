@@ -2,10 +2,10 @@ import { magicOrb,vfxSprite } from './vfx-textures.js';
 import { saveSlot,activeSlot } from './save-slots.js';
 import { CLOUD_START,validSkyPosition,platformFloor,islandAt } from './sky-layout.js';
 import * as THREE from 'three';
-import { bowShot, skillAvailability, isArrowSkill, inSpellArea } from './combat.js';
-import { createWeapon, animateWeapon, makeArrow } from './weapons.js';
+import { bowShot, skillAvailability, isArrowSkill, inSpellArea, TELEPORT_COOLDOWN, nextChainTarget } from './combat.js';
+import { createWeapon, animateWeapon, makeArrow, makeStormArrow, animateStormArrow } from './weapons.js';
 import { Effects } from './effects.js';
-import { warriorAction,castAction } from './motion.js';
+import { warriorAction,castAction,archeryAction } from './motion.js';
 import { animateMonster } from './actors.js';
 import { GroundLoot } from './ground-loot.js';
 import { collectDrop } from './loot.js';
@@ -101,7 +101,7 @@ export class GameEngine {
       const old=new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),d=this.travelDirection();let last=old.clone();
       for(let i=1;i<=30;i++){const q=old.clone().addScaledVector(d,i*.2);if(Math.abs(q.x)>310||Math.abs(q.z)>310||heightAt(q.x,q.z)>this.feetY+.6||this.world.colliders.some(c=>Math.hypot(q.x-c.x,q.z-c.z)<c.r+.45&&this.feetY<heightAt(c.x,c.z)+Math.max(3,c.r*5)))break;last=q;}
       if(last.distanceTo(old)<.4){this.notify('앞이 막혀 있습니다.');return;}
-      p.mana-=15;this.mobilityCooldown=0;this.camera.position.x=last.x;this.camera.position.z=last.z;this.grounded=false;
+      p.mana-=15;this.mobilityCooldown=TELEPORT_COOLDOWN;this.camera.position.x=last.x;this.camera.position.z=last.z;this.grounded=false;
       this.fx.sigil(old.clone().add(new THREE.Vector3(0,1,0)),'teleport',2.5,.55);this.fx.sigil(last.clone().add(new THREE.Vector3(0,1,0)),'teleport',2.5,.55);this.fx.trail(old.clone().add(new THREE.Vector3(0,1,0)),last.clone().add(new THREE.Vector3(0,1,0)),0x9dceff);
     }
   }
@@ -164,12 +164,12 @@ export class GameEngine {
     if(skill){const error=skillAvailability(this.player,skill,this.cooldowns[this.loadedArrowIndex]);if(error){this.notify(error);return;}this.commitSkill(this.loadedArrowIndex);kind=skill.kind;color=skill.color;power*=skill.power;}
     const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);
     dir.x+=(Math.random()-.5)*shot.spread;dir.y+=(Math.random()-.5)*shot.spread;dir.normalize();
-    this.shoot({power:power*shot.multiplier,color,kind,speed:shot.speed,range:skill?.range||75,gravity:shot.gravity,direction:dir,charge:shot.charge});
+    this.shoot({power:power*shot.multiplier,color,kind,speed:shot.speed,range:skill?.range||75,gravity:skill?.gravity??shot.gravity,direction:dir,charge:shot.charge,skill});
     this.loadedArrowIndex=null;this.attackCooldown=.36;this.swing=.35;this.sound(220+shot.charge*220,.13,'triangle');
   }
   attack(){
     if((this.player.classId!=='warrior'&&this.attackCooldown>0)||this.player.hp<=0)return;
-    if(this.player.classId==='ranger'){this.beginBow();return;}
+    if(this.player.classId==='ranger'){if(this.activeSpellIndex!==null)this.castTargetedSpell();else this.beginBow();return;}
     if(this.player.classId==='mage'){
       if(this.activeSpellIndex!==null){this.castTargetedSpell();return;}
       this.attackCooldown=.6;this.swing=1;this.castAction=castAction('orb');this.shoot({power:attributes(this.player).attack,color:0x9cdcff,kind:'magicOrb',speed:29,range:48,gravity:0});this.sound(280,.16);return;
@@ -191,11 +191,11 @@ export class GameEngine {
   }
   skill(index){
     const p=this.player,s=skillsFor(p)[index],error=skillAvailability(p,s,this.cooldowns[index]);if(error){this.notify(error);return;}
-    if(isArrowSkill(p,s)){this.loadedArrowIndex=this.loadedArrowIndex===index?null:index;this.notify(this.loadedArrowIndex===null?'일반 화살 장전':`${s.name} 장전 · 좌클릭을 누르고 당긴 뒤 놓아 발사`);return;}
-    if(s.targeted){this.activeSpellIndex=this.activeSpellIndex===index?null:index;this.notify(this.activeSpellIndex===null?'시전 취소':`${s.name} · 지면을 겨눈 뒤 좌클릭 · 우클릭 취소`);if(this.activeSpellIndex===null)this.fx.hidePreview();return;}
+    if(this.castAction?.archery&&this.castAction.age<this.castAction.release){this.notify('활 사격 동작 중입니다.');return;}
+    if(isArrowSkill(p,s)){this.activeSpellIndex=null;this.fx.hidePreview();this.loadedArrowIndex=this.loadedArrowIndex===index?null:index;this.notify(this.loadedArrowIndex===null?'일반 화살 장전':`${s.name} 장전 · 좌클릭을 누르고 당긴 뒤 놓아 발사`);return;}
+    if(s.targeted){this.drawStartedAt=null;this.bowCharge=0;this.loadedArrowIndex=null;this.activeSpellIndex=this.activeSpellIndex===index?null:index;this.notify(this.activeSpellIndex===null?'시전 취소':`${s.name} · 지면을 겨눈 뒤 좌클릭 · 우클릭 취소`);if(this.activeSpellIndex===null)this.fx.hidePreview();return;}
     this.commitSkill(index);const a=attributes(p);this.notify(s.name);
     if(p.classId!=='warrior')this.castAction=castAction(s.kind);
-    if(s.kind==='shadowVolley'){const dir=new THREE.Vector3(-Math.sin(this.yaw),0,-Math.cos(this.yaw)),point=new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z).addScaledVector(dir,10);point.y=surfaceAt(point.x,point.z,this.feetY+1);for(const m of this.world.monsters)if(m.alive&&inSpellArea({x:m.x,z:m.z,y:m.group.position.y},point,s.radius,7))this.hit(m,a.attack*s.power,s.color);this.fx.spell(point,s.radius,'shadowVolley',s.color,0,1.4);this.events.change?.();return;}
     if(p.classId==='warrior'){if(this.dash?.skill)this.dash=null;this.warriorAction={...warriorAction(s.motion||s.kind,this.combo++),skill:s};this.attackCooldown=0;return;}
     if(s.kind==='guard'||s.kind==='sanctuary'){p.buffs.guard=12;if(s.kind==='sanctuary')p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.5);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),4,'sanctuary',s.color,0,1.5);}
     else if(s.kind==='heal'){p.hp=Math.min(a.maxHp,p.hp+a.maxHp*.4);this.burst(this.camera.position,s.color,24);this.fx.spell(new THREE.Vector3(this.camera.position.x,this.feetY,this.camera.position.z),3,s.kind,s.color,0,1.2);}
@@ -211,7 +211,12 @@ export class GameEngine {
     const index=this.activeSpellIndex,s=this.targetedSkill;if(!s)return;
     const error=skillAvailability(this.player,s,this.cooldowns[index]);if(error){this.notify(error);return;}
     const target=this.groundTarget(s.range);if(!target.valid){this.notify('시전 범위 안의 마른 지면을 겨누세요.');return;}
-    this.commitSkill(index);this.castAction=castAction(s.kind);this.createField(target.point,s);this.notify(s.name);this.activeSpellIndex=null;this.fx.hidePreview();
+    this.commitSkill(index);
+    if(this.player.classId==='ranger'){
+      this.castAction={...archeryAction(s.motion),color:s.color,yaw:this.yaw};this.attackCooldown=this.castAction.release;
+      this.createField(target.point,{...s,delay:this.castAction.release+s.delay});this.drawStartedAt=null;this.bowCharge=0;this.loadedArrowIndex=null;
+    }else{this.castAction=castAction(s.kind);this.createField(target.point,s);}
+    this.notify(s.name);this.activeSpellIndex=null;this.fx.hidePreview();
   }
   createField(point,skill){
     const ticks=skill.duration>0?Math.max(1,Math.round(skill.duration/.5)):1;
@@ -223,12 +228,15 @@ export class GameEngine {
     if(!this.trajectory){this.trajectory=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:0xfff4cb,dashSize:.24,gapSize:.17,transparent:true,opacity:.7,depthWrite:false,toneMapped:false}));this.scene.add(this.trajectory);}
     this.trajectory.visible=show;if(!show)return;
     const dir=new THREE.Vector3();this.camera.getWorldDirection(dir);const shot=bowShot((performance.now()-this.drawStartedAt)/1000),start=this.camera.position.clone().addScaledVector(dir,.8),pts=[],range=this.arrowSkill?.range||75;let distance=0;
-    for(let i=0;i<=56;i++){const t=i*.025,q=start.clone().addScaledVector(dir,shot.speed*t);q.y-=.5*shot.gravity*t*t;if(i)distance+=q.distanceTo(pts.at(-1));if(distance>range)break;pts.push(q);if(i&&q.y<=surfaceAt(q.x,q.z,start.y+.1))break;}
+    for(let i=0;i<=56;i++){const t=i*.025,q=start.clone().addScaledVector(dir,shot.speed*t);q.y-=.5*(this.arrowSkill?.gravity??shot.gravity)*t*t;if(i)distance+=q.distanceTo(pts.at(-1));if(distance>range)break;pts.push(q);if(i&&q.y<=surfaceAt(q.x,q.z,start.y+.1))break;}
     this.trajectory.geometry.dispose();this.trajectory.geometry=new THREE.BufferGeometry().setFromPoints(pts);this.trajectory.computeLineDistances();
   }
   updateCombat(dt){
     this.updateTrajectory();
-    if(this.castAction){this.castAction.age+=dt;if(this.castAction.age>=this.castAction.duration)this.castAction=null;}
+    if(this.castAction){const cast=this.castAction;cast.age+=dt;
+      if(cast.archery&&!cast.released&&cast.age>=cast.release){cast.released=true;const direction=new THREE.Vector3(0,cast.kind==='bowSky'?.96:-.95,-.3).normalize().applyAxisAngle(UP,cast.yaw);this.fx.bowShot(this.camera.position.clone().add(new THREE.Vector3(-Math.cos(cast.yaw)*.3,-.2,Math.sin(cast.yaw)*.3)),direction,cast.color);}
+      if(cast.age>=cast.duration)this.castAction=null;
+    }
     const action=this.warriorAction;
     if(action){action.age+=dt;if(!action.hit&&action.age>=action.impact){action.hit=true;this.resolveWarrior(action);}if(action.age>=action.duration)this.warriorAction=null;}
     if(this.drawStartedAt!==null)this.bowCharge=bowShot((performance.now()-this.drawStartedAt)/1000).charge;
@@ -255,25 +263,65 @@ export class GameEngine {
     for(let i=0;i<=12;i++){const t=i/12,point=center.clone().addScaledVector(right,(t-.5)*2.6).addScaledVector(UP,(combo%2?1:-1)*(t-.5)*.65).addScaledVector(dir,Math.sin(t*Math.PI)*.45);if(last)this.fx.trail(last,point,color);last=point;}
   }
   distanceTo(m){return Math.hypot(m.x-this.camera.position.x,m.z-this.camera.position.z,m.group.position.y-this.feetY);}
-  shoot({power,color,kind,speed,range,gravity=9.81,direction=null,charge=0}){
+  shoot({power,color,kind,speed,range,gravity=9.81,direction=null,charge=0,skill=null}){
     const dir=direction||new THREE.Vector3();if(!direction)this.camera.getWorldDirection(dir);
-    const mesh=kind==='magicOrb'?magicOrb():makeArrow(color,kind!=='basic');if(kind!=='magicOrb')mesh.scale.set(2.2,2.2,1.65);mesh.position.copy(this.camera.position).addScaledVector(dir,.8);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),dir.clone().normalize());this.scene.add(mesh);
-    this.projectiles.push({mesh,velocity:dir.clone().multiplyScalar(speed),power,color,kind,gravity,range,charge,travel:0,life:range/Math.max(1,speed)+5,hitIds:new Set(),piercing:kind==='pierce'||kind==='stormArrow'});
+    const mesh=kind==='magicOrb'?magicOrb():kind==='stormArrow'?makeStormArrow(color,skill?.radius??6):makeArrow(color,kind!=='basic');if(kind!=='magicOrb'&&kind!=='stormArrow')mesh.scale.set(2.2,2.2,1.65);mesh.position.copy(this.camera.position).addScaledVector(dir,.8);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),dir.clone().normalize());this.scene.add(mesh);
+    this.projectiles.push({mesh,velocity:dir.clone().multiplyScalar(speed),power,color,kind,gravity,range,charge,speed,travel:0,life:range/Math.max(1,speed)+5,hitIds:new Set(),skill,bouncesLeft:skill?.bounces??0,piercing:kind==='pierce'});
+  }
+  monsterCenter(m){return m.group.position.clone().add(new THREE.Vector3(0,(m.group.userData.hitHeight||1.1)*m.def.scale,0));}
+  chainTarget(p,origin){
+    const candidates=this.world.monsters.map(m=>{const c=this.monsterCenter(m);return {id:m.id,alive:m.alive,x:c.x,y:c.y,z:c.z,monster:m};});
+    return nextChainTarget(candidates,origin,p.hitIds,p.skill?.bounceRange??10)?.monster||null;
+  }
+  redirectChain(p,m,contact){
+    if(p.bouncesLeft<=0)return false;
+    const origin=this.monsterCenter(m),next=this.chainTarget(p,origin);if(!next)return false;
+    p.bouncesLeft--;p.chainOrigin=origin;p.chainTarget=next;p.gravity=0;p.travel=0;p.range=p.skill.bounceRange;p.life=3;
+    p.mesh.position.copy(contact);p.velocity.copy(this.monsterCenter(next).sub(contact).normalize().multiplyScalar(p.speed));return true;
+  }
+  pullMonster(m,point,step){
+    const dx=point.x-m.x,dz=point.z-m.z,d=Math.hypot(dx,dz);if(d<.05)return;
+    const move=Math.min(step,d),nx=m.x+dx/d*move,nz=m.z+dz/d*move;
+    if(m.island&&Math.hypot(nx-m.island.x,nz-m.island.z)>m.island.r-.5)return;
+    const floor=surfaceAt(nx,nz,m.group.position.y+.65);
+    if(Math.abs(floor-m.group.position.y)>.65||isWater(nx,nz)||this.world.colliders.some(c=>Math.hypot(nx-c.x,nz-c.z)<c.r+.45))return;
+    m.x=nx;m.z=nz;m.group.position.set(nx,floor,nz);
   }
   updateProjectiles(dt){
     const line=new THREE.Line3(),near=new THREE.Vector3();
     for(let i=this.projectiles.length-1;i>=0;i--){
-      const p=this.projectiles[i],old=p.mesh.position.clone();p.life-=dt;p.velocity.y-=p.gravity*dt;p.mesh.position.addScaledVector(p.velocity,dt);p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),p.velocity.clone().normalize());
-      p.travel+=old.distanceTo(p.mesh.position);line.set(old,p.mesh.position);
-      let groundT=Infinity;for(let j=1;j<=8;j++){const q=line.at(j/8,new THREE.Vector3());if(q.y<=surfaceAt(q.x,q.z,old.y+.1)+.025){groundT=j/8;break;}}
-      const hits=[];for(const m of this.world.monsters){if(!m.alive||p.hitIds.has(m.id))continue;const c=m.group.position.clone().add(new THREE.Vector3(0,(m.group.userData.hitHeight||1.1)*m.def.scale,0));line.closestPointToPoint(c,true,near);const t=line.closestPointToPointParameter(c,true);if(t<groundT&&near.distanceTo(c)<(m.group.userData.hitRadius||.8)*m.def.scale+(p.kind==='magicOrb'?.14:.1))hits.push({m,t});}
-      hits.sort((a,b)=>a.t-b.t);let stopped=false;
-      for(const {m,t}of hits){if(!m.alive)continue;p.hitIds.add(m.id);this.hit(m,p.power,p.color,line.at(t,new THREE.Vector3()));if(p.kind==='frost')m.slow=6;if(p.kind==='poison'){m.poison=8;m.poisonPower=attributes(this.player).attack*.45;m.poisonTick=1;}
-        if(p.kind==='rainArrow'){const point=line.at(t,new THREE.Vector3());point.y=surfaceAt(point.x,point.z,this.camera.position.y);for(const other of this.world.monsters)if(other!==m&&other.alive&&inSpellArea({x:other.x,z:other.z,y:other.group.position.y},point,8,8))this.hit(other,p.power,p.color);this.fx.spell(point,8,'arrowRain',p.color,0,1.2);}
-        if(!p.piercing){stopped=true;break;}
+      const p=this.projectiles[i],old=p.mesh.position.clone();p.life-=dt;
+      if(p.chainTarget){
+        if(!p.chainTarget.alive)p.chainTarget=this.chainTarget(p,p.chainOrigin);
+        if(p.chainTarget)p.velocity.copy(this.monsterCenter(p.chainTarget).sub(old).normalize().multiplyScalar(p.speed));else{this.removeObject(p.mesh);this.projectiles.splice(i,1);continue;}
       }
-      if(groundT!==Infinity&&p.kind==='rainArrow'&&!stopped){const point=line.at(groundT,new THREE.Vector3());point.y=surfaceAt(point.x,point.z,this.camera.position.y);for(const m of this.world.monsters)if(m.alive&&inSpellArea({x:m.x,z:m.z,y:m.group.position.y},point,8,8))this.hit(m,p.power,p.color);this.fx.spell(point,8,'arrowRain',p.color,0,1.2);}
+      p.velocity.y-=p.gravity*dt;p.mesh.position.addScaledVector(p.velocity,dt);
+      const remaining=Math.max(0,p.range-p.travel),step=old.distanceTo(p.mesh.position);if(step>remaining)p.mesh.position.copy(old).lerp(p.mesh.position,remaining/step);
+      p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),p.velocity.clone().normalize());p.travel+=old.distanceTo(p.mesh.position);line.set(old,p.mesh.position);
+      let groundT=Infinity;for(let j=1;j<=8;j++){const q=line.at(j/8,new THREE.Vector3());if(q.y<=surfaceAt(q.x,q.z,old.y+.1)+.025){groundT=j/8;break;}}
+      if(groundT!==Infinity){p.mesh.position.copy(line.at(groundT,new THREE.Vector3()));line.end.copy(p.mesh.position);}
+      let stopped=false,bounced=false;
+      if(p.kind==='stormArrow'){
+        for(const m of this.world.monsters){if(!m.alive)continue;line.closestPointToPoint(this.monsterCenter(m),true,near);
+          if(near.distanceTo(this.monsterCenter(m))>(p.skill?.radius??6))continue;
+          if(!p.hitIds.has(m.id)){p.hitIds.add(m.id);this.hit(m,p.power,p.color);}
+          if(m.alive)this.pullMonster(m,near,(p.skill?.pullSpeed??8)*dt);
+        }
+        animateStormArrow(p.mesh,dt);
+      }else{
+        const hits=[];for(const m of this.world.monsters){if(!m.alive||p.hitIds.has(m.id))continue;const c=this.monsterCenter(m);if(p.chainOrigin&&c.distanceTo(p.chainOrigin)>p.skill.bounceRange)continue;line.closestPointToPoint(c,true,near);const t=line.closestPointToPointParameter(c,true);if(near.distanceTo(c)<(m.group.userData.hitRadius||.8)*m.def.scale+(p.kind==='magicOrb'?.14:.1))hits.push({m,t});}
+        hits.sort((a,b)=>a.t-b.t);
+        for(const {m,t}of hits){if(!m.alive)continue;const contact=line.at(t,new THREE.Vector3());p.hitIds.add(m.id);
+          if(p.kind==='frost'){
+            const point=m.group.position.clone();for(const other of this.world.monsters)if(other.alive&&inSpellArea({x:other.x,y:other.group.position.y,z:other.z},point,p.skill?.radius??5,7)){this.hit(other,p.power,p.color,other===m?contact:null);other.slow=6;}
+            this.fx.spell(point,p.skill?.radius??5,'frostBurst',p.color,0,0);
+          }else this.hit(m,p.power,p.color,contact);
+          if(p.kind==='chainArrow')bounced=this.redirectChain(p,m,contact);
+          if(!p.piercing){stopped=!bounced;break;}
+        }
+      }
       this.fx.trail(old,p.mesh.position,p.kind==='basic'?0xfff5cc:p.color);if(p.kind==='magicOrb')p.mesh.children[0].rotation.y+=dt*7;
+      if(bounced)continue;
       if(stopped||groundT!==Infinity||p.life<=0||p.travel>=p.range){this.removeObject(p.mesh);this.projectiles.splice(i,1);}
     }
   }

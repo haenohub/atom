@@ -54,9 +54,9 @@ with sync_playwright() as p:
   page.wait_for_function('window.__AETHERWILD__.engine.locked');page.keyboard.press('ShiftLeft')
   result=page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;e.paused=true;const manaCost=beforeMove.mana-e.player.mana;for(let i=0;i<20;i++)e.movement(1/60);const z=e.camera.position.z;e.mobility();return {distance:beforeMove.z-z,mana:e.player.mana,manaCost,stamina:e.stamina,cd:e.mobilityCooldown,duplicate:e.camera.position.z!==z};}""")
   assert (4.3<result['distance']<4.8 if cls=='warrior' else 5.8<result['distance']<6.2),result
-  assert (result['cd']>0 and not result['duplicate'] if cls=='warrior' else result['cd']==0 and result['duplicate']),result
+  assert result['cd']>0 and not result['duplicate'],result
   if cls=='mage':assert 14<result['manaCost']<=15,result
-  passed('native Shift '+cls+' movement, distance limit and cost; '+('dash cooldown enforced' if cls=='warrior' else 'teleport repeats with zero cooldown'))
+  passed('native Shift '+cls+' movement, distance limit and cost; '+('dash cooldown enforced' if cls=='warrior' else 'teleport cooldown is 0.5 seconds'))
  result=page.evaluate("""async()=>{const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');e.mobilityCooldown=0;e.world.colliders=[{x:0,z:36,r:1}];e.camera.position.set(0,heightAt(0,40)+1.75,40);e.feetY=heightAt(0,40);e.fallPeak=e.feetY;e.yaw=0;e.mobility();return 40-e.camera.position.z;}""")
  assert result<2.6,result
  passed('teleport swept path stops before solid obstacles')

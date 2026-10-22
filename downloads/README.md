@@ -1,8 +1,8 @@
-# AETHERWILD v0.6 — 게임 다운로드
+# AETHERWILD v0.7 — 게임 다운로드
 
 설치 없이 플레이하려면 **[웹 플레이 주소](https://haenohub.github.io/atom/)**를 사용하세요. 최초 한 번 [GitHub Pages 활성화](../docs/PLAY_ONLINE.md) 후에는 업데이트도 같은 주소에 자동 반영됩니다. 아래 ZIP은 내려받아 직접 실행할 때 사용합니다.
 
-**[AETHERWILD-v0.6.0.zip 바로 다운로드](https://github.com/haenohub/atom/raw/refs/heads/codex/aetherwild-v0.1.0/downloads/AETHERWILD-v0.6.0.zip)**
+**[AETHERWILD-v0.7.0.zip 바로 다운로드](https://github.com/haenohub/atom/raw/refs/heads/codex/aetherwild-v0.1.0/downloads/AETHERWILD-v0.7.0.zip)**
 
 파일 화면이 열리면 **Download raw file**(다운로드 아이콘)을 누르세요. 소스 코드, 빌드된 게임, 새 그래픽 에셋, 개발 문서, 테스트와 실행 안내가 들어 있습니다.
 
@@ -24,11 +24,12 @@ bash play.sh
 
 소스 변경을 감지하면 `play.sh`가 빌드를 갱신합니다. 브라우저를 새로고침하세요. 기존 브라우저 저장 데이터는 유지됩니다.
 
+- 궁수: 오른손잡이 · 서리 폭발 반경 5m · 암살 표식 10m 안에서 최대 5회 도약 · 폭풍 사격 광역 끌어당김
 - 착용 외형: I에서 장비 변경 → 1인칭 무기·장갑 / F1 전신 외형에 반영
 - 전사: 3단 기본 공격·큰 베기·힘을 모은 돌진참
 - 몬스터: 기존 12종 재디자인 + 신규 5종 = 17종
-- 마법사 Shift: 쿨타임 없음 · 매회 MP 15
-- 그림자사냥꾼 Lv.10: 숫자 4로 그림자 화살 폭풍 즉시 광역 발동
+- 마법사 Shift: 재사용 0.5초 · 매회 MP 15
+- 전직 궁수 4번: 범위 지정 → 좌클릭 → 발사 모션 → 0.3초 후 그림자 화살 상승 / 화살비 하강
 - 저장: 시작 화면에서 1~5번 칸을 선택 · 구버전은 1번으로 자동 이전
 - 테스트: 경험치 ×5 · 장비 드랍 확률 ×5
 - 구름 정원: 야영지 동쪽 차원문에서 E · Space로 점프 · 줄에서 E → W/S 등반
@@ -43,4 +44,4 @@ bash play.sh
 - 마법사 기본: 좌클릭 마력구체 투사체
 - 마법사 스킬: 숫자 키로 범위 선택 → 지면을 겨누고 좌클릭 확정 → 우클릭 취소
 
-기존 v0.1/v0.2/v0.3/v0.4/v0.5 패키지도 이 폴더에 보관합니다. v0.6 체크섬은 `AETHERWILD-v0.6.0.zip.sha256` 파일로 제공합니다.
+기존 v0.1/v0.2/v0.3/v0.4/v0.5/v0.6 패키지도 이 폴더에 보관합니다. v0.7 체크섬은 `AETHERWILD-v0.7.0.zip.sha256` 파일로 제공합니다.

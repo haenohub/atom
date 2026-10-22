@@ -3,7 +3,8 @@ import { plate,taperedCurve } from './modeling.js';
 import * as THREE from 'three';
 import { surfaceMaterial } from './surfaces.js';
 import { materials } from './art.js';
-import { warriorPose,castingPose } from './motion.js';
+import { warriorPose,castingPose,archeryPose } from './motion.js';
+import { vfxMap } from './vfx-textures.js';
 import { ITEMS } from './data.js';
 
 export function makeArrow(color=0xbcc6b8,enchanted=false){
@@ -14,8 +15,18 @@ export function makeArrow(color=0xbcc6b8,enchanted=false){
   for(let i=0;i<3;i++){const vane=add(new THREE.PlaneGeometry(.065,.15),new THREE.MeshStandardMaterial({color:0xc2b8a0,side:THREE.DoubleSide,roughness:.95}),0,0,.3);vane.rotation.set(Math.PI/2,0,i*Math.PI*2/3);}
   root.userData.tip=tip;return root;
 }
-function hand(group,x,y,z,player){
-  const parent=group;group=new THREE.Group();group.userData.firstPersonHand=true;parent.add(group);group.userData.equipmentId=player.equipment.gloves||null;
+export function makeStormArrow(color,radius=6){
+  const root=new THREE.Group(),arrow=makeArrow(color,true),wind=new THREE.Group();arrow.scale.set(2.2,2.2,1.65);root.add(arrow,wind);
+  for(let i=0;i<4;i++){
+    const pts=[];for(let j=0;j<=72;j++){const t=j/72,a=t*Math.PI*5+i*Math.PI/2,r=(.35+Math.sin(t*Math.PI)*.65)*radius*.72;pts.push(new THREE.Vector3(Math.cos(a)*r,Math.sin(a)*r,(t-.5)*5));}
+    const mesh=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),96,.035+i*.006,5,false),new THREE.MeshBasicMaterial({map:vfxMap('slash'),color,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));wind.add(mesh);
+  }
+  for(let i=0;i<3;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(radius*(.28+i*.2),.025,5,56),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.28,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));ring.position.z=(i-1)*1.4;ring.rotation.x=.15*i;wind.add(ring);}
+  root.userData.wind=wind;root.userData.radius=radius;return root;
+}
+export function animateStormArrow(root,dt){root.userData.wind.rotation.z+=dt*9;}
+function hand(group,x,y,z,player,side='right'){
+  const parent=group;group=new THREE.Group();group.userData.firstPersonHand=true;group.userData.hand=side;group.name=side+'-hand';parent.add(group);group.userData.equipmentId=player.equipment.gloves||null;
   const glove=gearVisual(player.equipment.gloves),leather=glove?surfaceMaterial(player.classId==='warrior'?'steel':player.classId==='mage'?'astral':'cloth',glove.color):materials().leather.clone(),skin=new THREE.MeshStandardMaterial({color:0xb58e72,roughness:.8});
   const forearm=new THREE.Mesh(new THREE.CylinderGeometry(.045,.064,.37,12),leather);forearm.position.set(x,y-.16,z+.08);forearm.rotation.x=.45;group.add(forearm);
   const palm=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),leather);palm.scale.set(.055,.085,.05);palm.position.set(x,y,z);group.add(palm);
@@ -43,7 +54,7 @@ export function createWeapon(player){
     add(new THREE.CylinderGeometry(.031,.031,.19,12),m.leather.clone(),0,0,0);
     for(const y of [-.58,.58])add(new THREE.TorusGeometry(.026,.005,5,12),brass,0,y,-.04).rotation.x=Math.PI/2;
     const arrow=makeArrow();arrow.position.set(0,-.02,-.32);g.add(arrow);g.userData.arrow=arrow;
-    hand(g,-.005,-.05,.02,player);const drawHand=new THREE.Group();hand(drawHand,0,-.02,.03,player);g.add(drawHand);g.userData.drawHand=drawHand;
+    hand(g,-.005,-.05,.02,player,'left');const drawHand=new THREE.Group();hand(drawHand,0,-.02,.03,player,'right');g.add(drawHand);g.userData.drawHand=drawHand;g.userData.handedness='right';g.userData.bowHand='left';g.userData.stringHand='right';
     g.position.set(-.3,-.28,-.72);g.rotation.set(.03,-.05,.13);
   }else{
     add(new THREE.CylinderGeometry(.022,.036,1.12,12,6),wood,0,-.17,0);
@@ -73,18 +84,19 @@ export function createWeapon(player){
 export function animateWeapon(g,{classId,time,bob=0,swing=0,charge=0,drawing=false,arrowSkill=null,targeting=false,action=null,cast=null,blocking=false}){
   g.position.copy(g.userData.base);g.position.y+=bob*.4;
   if(classId==='ranger'){
+    const pose=archeryPose(cast);if(cast?.archery){charge=pose.draw;drawing=charge>0;}
     g.rotation.copy(g.userData.baseRotation);g.position.x+=charge*.09;g.position.z-=charge*.06;g.rotation.z=.13-charge*.1;
     const mesh=g.userData.bow,p=mesh.geometry.attributes.position,base=g.userData.bowBase;
     for(let i=0;i<p.count;i++){const y=base[i*3+1];p.setXYZ(i,base[i*3],y*(1-charge*.045),base[i*3+2]+charge*.11*Math.pow(Math.abs(y)/.66,1.2));}p.needsUpdate=true;mesh.geometry.computeVertexNormals();
-    const s=g.userData.string.geometry.attributes.position;s.setXYZ(0,0,-.66*(1-charge*.045),.05+charge*.11);s.setXYZ(1,0,-.02,.05+charge*.42);s.setXYZ(2,0,.66*(1-charge*.045),.05+charge*.11);s.needsUpdate=true;
-    const arrow=g.userData.arrow;arrow.position.z=-.32+charge*.42;arrow.visible=drawing||!!arrowSkill;
+    const nockX=charge*.36,s=g.userData.string.geometry.attributes.position;s.setXYZ(0,0,-.66*(1-charge*.045),.05+charge*.11);s.setXYZ(1,nockX,-.02+charge*.1,.05+charge*.42);s.setXYZ(2,0,.66*(1-charge*.045),.05+charge*.11);s.needsUpdate=true;
+    const arrow=g.userData.arrow;arrow.position.z=-.32+charge*.42;arrow.position.x=nockX*.5;arrow.position.y=-.02+charge*.06;arrow.rotation.x=-Math.atan2(charge*.1,.82);arrow.rotation.y=Math.atan2(nockX,.82);arrow.visible=drawing||(!cast?.archery&&!!arrowSkill);
     const mat=arrow.userData.tip.material;mat.color.setHex(arrowSkill?.color??0xbcc6b8);mat.emissive.setHex(arrowSkill?.color??0);mat.emissiveIntensity=arrowSkill?1.6:0;
-    g.userData.drawHand.position.set(charge*.15,-.04,.05+charge*.42);g.userData.drawHand.visible=drawing;
-    if(cast){const c=castingPose(cast);g.rotation.x-=c.raise*.8;g.rotation.z+=Math.sin(cast.age*8)*c.spread*.25;g.position.y+=c.raise*.13;}
+    g.userData.drawHand.position.set(nockX,charge*.14-.01,.05+charge*.42);g.userData.drawHand.visible=drawing;
+    if(cast?.archery){g.rotation.x+=pose.pitch;g.position.y+=pose.pitch*.12;g.position.z+=pose.recoil*.08;}
   }else if(classId==='warrior'){
     const p=warriorPose(action,blocking);g.position.add(new THREE.Vector3(p.x,p.y,p.z));g.rotation.copy(g.userData.baseRotation);g.rotation.x+=p.rx;g.rotation.y+=p.ry;g.rotation.z+=p.rz;
   }else{
-    const c=castingPose(cast);g.rotation.copy(g.userData.baseRotation);g.rotation.z-=c.raise*.42;g.rotation.x-=c.raise*.85-c.thrust*.65;g.position.y+=c.raise*.32-c.thrust*.08;g.position.z+=c.raise*.12-c.thrust*.36;
+    const c=castingPose(cast);g.rotation.copy(g.userData.baseRotation);g.rotation.z-=c.raise*.42;g.rotation.x-=c.raise*.85-c.thrust*.65;g.rotation.y+=c.sweep*.9;g.position.x+=c.sweep*.24;g.position.y+=c.raise*.32-c.thrust*.08;g.position.z+=c.raise*.12-c.thrust*.36;
     if(g.userData.gem){g.userData.gem.rotation.y=time*.6;g.userData.gem.material.emissiveIntensity=targeting?2.3:1.1;}
   }
 }

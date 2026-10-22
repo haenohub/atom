@@ -1,5 +1,7 @@
 // Input-independent rules shared by the live controller and regression tests.
 export const BOW_DRAW_SECONDS = 1.15;
+export const TELEPORT_COOLDOWN = .5;
+export const BOW_CAST_RELEASE = .45;
 export const clamp01 = value => Math.max(0, Math.min(1, value));
 export function bowShot(heldSeconds) {
   const charge = clamp01(Math.max(0, heldSeconds) / BOW_DRAW_SECONDS);
@@ -14,4 +16,13 @@ export function skillAvailability(player, skill, cooldown = 0) {
 export function isArrowSkill(player, skill) { return player.classId === 'ranger' && skill?.delivery === 'arrow'; }
 export function inSpellArea(target, center, radius, verticalRange = 7) {
   return Math.hypot(target.x - center.x, target.z - center.z) <= radius && Math.abs(target.y - center.y) <= verticalRange;
+}
+export function nextChainTarget(targets, center, hitIds, range = 10) {
+  let best = null, distance = Infinity;
+  for (const target of targets) {
+    if (!target.alive || hitIds.has(target.id)) continue;
+    const d = Math.hypot(target.x-center.x, target.y-center.y, target.z-center.z);
+    if (d <= range && (d < distance || (d === distance && String(target.id) < String(best.id)))) { best=target; distance=d; }
+  }
+  return best;
 }

@@ -1,3 +1,4 @@
+import { BOW_CAST_RELEASE } from './combat.js';
 const clamp=t=>Math.max(0,Math.min(1,t));
 const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
 export function warriorAction(kind='basic',combo=0){
@@ -16,7 +17,13 @@ export function warriorPose(action,blocking=false){
  return {x:x*hold,y:y*hold,z:z*hold,rx:rx*hold,ry:ry*hold,rz:rz*hold,torso:torso*hold,lean:lean*hold,elbow:elbow*hold};
 }
 export function castAction(kind='orb'){return {kind,age:0,duration:kind==='orb'?.6:kind==='shadowVolley'?.9:1.15};}
+export function archeryAction(kind){return {kind,archery:true,age:0,release:BOW_CAST_RELEASE,duration:.85,released:false};}
+export function archeryPose(action){
+ if(!action?.archery)return {pitch:0,draw:0,recoil:0};
+ const prepare=smooth(action.age/.3),recover=1-smooth((action.age-.6)/.25),recoil=Math.max(0,1-Math.abs(action.age-action.release)/.12);
+ return {pitch:(action.kind==='bowSky'?1.08:-.95)*prepare*recover,draw:(1-smooth((action.age-action.release)/.08))*prepare,recoil};
+}
 export function castingPose(action){
- if(!action)return {raise:0,thrust:0,spread:0};const t=clamp(action.age/action.duration),rise=smooth(t/.38),release=smooth((t-.38)/.22),recover=1-smooth((t-.67)/.33);
- return {raise:rise*recover,thrust:release*recover,spread:Math.sin(t*Math.PI)};
+ if(!action)return {raise:0,thrust:0,spread:0,sweep:0};const t=clamp(action.age/action.duration),rise=smooth(t/.38),release=smooth((t-.38)/.22),recover=1-smooth((t-.67)/.33);
+ return {raise:rise*recover,thrust:release*recover,spread:Math.sin(t*Math.PI),sweep:(.85*rise-1.7*release)*recover};
 }
