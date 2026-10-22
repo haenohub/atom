@@ -1,3 +1,4 @@
+import { smoothPhase } from './animation.js';
 import { sculptGeometry } from './sculpt.js';
 import { createAvatar } from './avatar.js';
 import { createSculptMonster } from './creatures.js';
@@ -11,7 +12,7 @@ export function animateMonster(m,dt,time){
   const g=m.group,r=g.userData.rig;if(!r)return;
   reset(r.torso);g.rotation.x=0;g.rotation.z=0;g.scale.setScalar(m.def.scale);
   if(!m.alive){
-    m.deathAge=(m.deathAge||0)+dt;const t=Math.min(1,m.deathAge/.85),sink=Math.max(0,m.deathAge-2.5)*.6;
+    m.deathAge=(m.deathAge||0)+dt;const t=smoothPhase(m.deathAge/.85),sink=Math.max(0,m.deathAge-2.5)*.6;
     if(m.def.shape==='slime'){r.torso.scale.set(1+t*.45,1-t*.82,1+t*.45);}
     else if(m.def.shape==='spirit'){r.torso.scale.setScalar(Math.max(.01,1-m.deathAge/2));r.torso.rotation.y=m.deathAge*3;}
     else{g.rotation.z=m.deathSide*t*1.35;r.torso.position.y=-t*.25;for(const leg of r.legs)leg.rotation.x=.7*t;}
@@ -19,7 +20,7 @@ export function animateMonster(m,dt,time){
   }
   if(r.skin){r.skin.material.emissive.setHex(0xffd5a3);r.skin.material.emissiveIntensity=m.hit>0?Math.max(0,(m.hit-.18)/.14)*.65:0;}
   if(m.freeze>0)return;
-  const phase=time*(m.aggro?10:5)+(m.homeX||0),walk=Math.min(1,(m.moveSpeed||0)/Math.max(1,m.def.speed)),breath=Math.sin(time*2+m.homeZ);
+  const phase=time*(m.aggro?10:5)+(m.homeX||0),targetWalk=Math.min(1,(m.moveSpeed||0)/Math.max(1,m.def.speed)),walk=m.motionBlend=dt>0?THREE.MathUtils.lerp(m.motionBlend||0,targetWalk,1-Math.exp(-dt*18)):targetWalk,breath=Math.sin(time*2+m.homeZ);
   r.torso.position.y=breath*.025+Math.abs(Math.sin(phase))*walk*.07;
   r.legs.forEach((leg,i)=>{leg.rotation.x=Math.sin(phase+(i===0||i===3?0:Math.PI))*.62*walk;});
   r.arms.forEach((arm,i)=>{arm.rotation.x=-Math.sin(phase+i*Math.PI)*.32*walk;});
@@ -29,11 +30,11 @@ export function animateMonster(m,dt,time){
   if(r.core){r.core.rotation.y=time*.6;r.torso.position.y+=Math.sin(time*2+m.homeX)*.25;r.halo.rotation.z=time*.5;r.orbs.forEach((o,i)=>o.position.set(Math.sin(time+i*1.26)*.8,1+Math.sin(time*2+i)*.35,Math.cos(time+i*1.26)*.8));}
   if(m.def.shape==='ray')r.torso.position.y+=Math.sin(time*2+m.homeX)*.18;
   if(m.def.shape==='slime'){const bounce=Math.sin(time*(m.aggro?5:3)+m.homeX);r.torso.scale.set(1-bounce*.09,1+bounce*.14,1-bounce*.09);r.torso.position.y+=Math.max(0,bounce)*.2;}
-  if(m.attackAge!==null&&m.attackAge!==undefined){const t=m.attackAge/.85,wind=Math.sin(Math.min(1,t/.55)*Math.PI/2),strike=Math.sin(Math.max(0,Math.min(1,(t-.5)/.5))*Math.PI);
+  if(m.attackAge!==null&&m.attackAge!==undefined){const t=m.attackAge/.85,wind=smoothPhase(t/.55),strike=Math.sin(smoothPhase((t-.5)/.5)*Math.PI);
     r.torso.rotation.x=-.16*wind+.48*strike;r.torso.position.z=.18*wind-.55*strike;if(r.head)r.head.rotation.x+=.22*strike;if(r.jaw)r.jaw.rotation.x=wind*.5;
     r.arms.forEach(arm=>arm.rotation.x=-1.4*wind+2.2*strike);r.wings.forEach((wing,i)=>wing.rotation.z+=(i?1:-1)*wind*.55);
   }
-  if(m.hit>0){const recoil=Math.sin(m.hit/.32*Math.PI);r.torso.rotation.x-=recoil*.24;r.torso.position.z+=recoil*.22;}
+  if(m.hit>0){const recoil=Math.sin(smoothPhase(m.hit/.32)*Math.PI);r.torso.rotation.x-=recoil*.24;r.torso.position.z+=recoil*.22;}
 }
 export function createNPC(npc){
   const classId=npc.id==='rhea'?'ranger':npc.id==='elia'?'mage':'warrior';

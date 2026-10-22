@@ -26,7 +26,7 @@ with sync_playwright() as p:
       e.player.hp=attributes(e.player).maxHp;e.player.position={x:0,z:44};return out;
     }""")
     for result in results:print('PASS '+result,flush=True)
-    page.evaluate("""async()=>{const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');e.setQuality('high');e.camera.position.set(-4,heightAt(-4,39)+1.75,39);e.feetY=heightAt(-4,39);e.yaw=0;e.pitch=-.06;e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();e.paused=false;for(let i=0;i<30;i++)e.world.update(e.time,.03,e.camera.position,false);const n=e.world.npcs.find(n=>n.id==='rhea');if(Math.abs(Math.sin(n.group.rotation.y))>.15)throw Error('NPC did not face player');}""")
+    page.evaluate("""async()=>{const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');e.setQuality('high');e.camera.position.set(-4,heightAt(-4,39)+1.75,39);e.feetY=heightAt(-4,39);e.yaw=0;e.pitch=-.06;e.camera.rotation.set(e.pitch,0,0);e.camera.updateMatrixWorld();e.paused=false;for(let i=0;i<108;i++)e.world.animateNPCs(e.time,1/120,e.camera.position);e.world.update(e.time,0,e.camera.position,false);const n=e.world.npcs.find(n=>n.id==='rhea');if(Math.abs(Math.sin(n.group.rotation.y))>.15)throw Error('NPC did not face player');}""")
     page.evaluate('() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
     page.screenshot(path=str(out/'camp.png'),timeout=120000)
     page.evaluate("""async()=>{const e=window.__AETHERWILD__.engine,{heightAt}=await import('/src/terrain.js');e.paused=true;e.camera.position.set(-80,heightAt(-80,5)+6,5);e.camera.lookAt(-130,-1,-32);e.camera.updateMatrixWorld();} """)

@@ -229,9 +229,12 @@ export class World {
     for(let i=0;i<14;i++){const x=(this.rng()-.5)*100,z=-80-this.rng()*90,y=60+this.rng()*35;verts.push(x-1,y,z,x,y-.3,z,x,y-.3,z,x+1,y,z);}
     birdsGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));this.birds=new THREE.LineSegments(birdsGeo,new THREE.LineBasicMaterial({color:0x46544d}));this.scene.add(this.birds);
   }
+  animateNPCs(time,dt,viewer){
+    for(const n of this.npcs){const u=n.group.userData;u.torso.rotation.z=Math.sin(time*1.4+n.x)*.018;u.head.rotation.y=Math.sin(time*.65+n.z)*.08;u.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*1.3+i)*.035);u.marker.position.y=2.85+Math.sin(time*2)*.06;if(viewer){const d=Math.hypot(n.x-viewer.x,n.z-viewer.z);if(d<7&&d>.1){const goal=Math.atan2(n.x-viewer.x,n.z-viewer.z),angle=goal-n.group.rotation.y;n.group.rotation.y+=Math.atan2(Math.sin(angle),Math.cos(angle))*Math.min(1,dt*5);}n.group.visible=d<90;u.label.visible=d<18;u.marker.visible=d<45;}}
+  }
   update(time, dt, viewer, low=false) {
     updateFantasy(this,time);
-    for(const n of this.npcs){const u=n.group.userData;u.torso.rotation.z=Math.sin(time*1.4+n.x)*.018;u.head.rotation.y=Math.sin(time*.65+n.z)*.08;u.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*1.3+i)*.035);u.marker.position.y=2.85+Math.sin(time*2)*.06;if(viewer){const d=Math.hypot(n.x-viewer.x,n.z-viewer.z);if(d<7&&d>.1){const goal=Math.atan2(n.x-viewer.x,n.z-viewer.z),angle=goal-n.group.rotation.y;n.group.rotation.y+=Math.atan2(Math.sin(angle),Math.cos(angle))*Math.min(1,dt*5);}n.group.visible=d<90;u.label.visible=d<18;u.marker.visible=d<45;}}
+
     if(viewer)this.skyDome.position.copy(viewer);
     this.clouds.position.x=Math.sin(time*.004)*18;this.birds.position.x=Math.sin(time*.08)*15;
     this.flame.scale.y=1.6+Math.sin(time*12)*.18;this.fireLight.intensity=18+Math.sin(time*9)*3;

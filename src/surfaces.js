@@ -2,7 +2,7 @@ import * as THREE from 'three';
 const maps=new Map(),tiles={chitin:[0,.5],feather:[.5,.5],scaleDetail:[0,0],astral:[.5,0],skin:[.5,0],hide:[.5,.5],membrane:[0,0],pelt:[0,.5],steel:[0,.5],cloth:[.5,.5],fur:[0,0],meteor:[.5,0],ground:[0,.5],bark:[.5,.5],rock:[0,0],soil:[.5,0],leaves:[0,.5],needles:[.5,.5],grass:[0,0],fern:[.5,0]};
 export function surfaceMap(kind){
   if(maps.has(kind))return maps.get(kind);
-  const file=['chitin','feather','scaleDetail','astral'].includes(kind)?'forged-surfaces.png':['skin','hide','membrane','pelt'].includes(kind)?'creature-surfaces.png':['ground','bark','rock','soil'].includes(kind)?'world-materials.png':['leaves','needles','grass','fern'].includes(kind)?'foliage-atlas.png':'materials-atlas.png';const map=new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/${file}`);map.colorSpace=THREE.SRGBColorSpace;map.repeat.set(.5,.5);map.offset.set(...tiles[kind]);map.anisotropy=8;maps.set(kind,map);return map;
+  const file=['chitin','feather','scaleDetail','astral'].includes(kind)?'forged-surfaces.png':['skin','hide','membrane','pelt'].includes(kind)?'creature-surfaces.png':['ground','bark','rock','soil'].includes(kind)?'world-materials.png':['leaves','needles','grass','fern'].includes(kind)?'foliage-atlas.png':'materials-atlas.png';let ready;const pending=new Promise(resolve=>ready=resolve);const map=new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/${file}`,ready,undefined,()=>ready(null));map.userData.ready=pending;map.colorSpace=THREE.SRGBColorSpace;map.repeat.set(.5,.5);map.offset.set(...tiles[kind]);map.anisotropy=8;maps.set(kind,map);return map;
 }
 export function surfaceMaterial(kind,color=0xffffff,extra={}){
   const material=new THREE.MeshStandardMaterial({map:surfaceMap(kind),color,roughness:kind==='steel'?.36:.85,metalness:kind==='steel'?.62:0,envMapIntensity:1.3,...extra});
@@ -30,3 +30,5 @@ export function sculptMaterial(kind,color=0xffffff,extra={}){
  };
  material.customProgramCacheKey=()=>`aetherwild-triplanar-${kind}`;return material;
 }
+
+export function surfaceTextures(){return [...maps.values()];}

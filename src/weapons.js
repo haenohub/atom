@@ -55,7 +55,7 @@ export function createWeapon(player){
     for(const y of [-.58,.58])add(new THREE.TorusGeometry(.026,.005,5,12),brass,0,y,-.04).rotation.x=Math.PI/2;
     const arrow=makeArrow();arrow.position.set(0,-.02,-.32);g.add(arrow);g.userData.arrow=arrow;
     hand(g,-.005,-.05,.02,player,'left');const drawHand=new THREE.Group();hand(drawHand,0,-.02,.03,player,'right');g.add(drawHand);g.userData.drawHand=drawHand;g.userData.handedness='right';g.userData.bowHand='left';g.userData.stringHand='right';
-    g.position.set(-.3,-.28,-.72);g.rotation.set(.03,-.05,.13);
+    g.position.set(.25,-.32,-.95);g.rotation.set(.03,-.05,.13);
   }else{
     add(new THREE.CylinderGeometry(.022,.036,1.12,12,6),wood,0,-.17,0);
     for(const y of [-.35,.23,.35])add(new THREE.TorusGeometry(.03,.008,6,16),brass,0,y,0).rotation.x=Math.PI/2;
@@ -88,7 +88,7 @@ export function animateWeapon(g,{classId,time,bob=0,swing=0,charge=0,drawing=fal
     g.rotation.copy(g.userData.baseRotation);g.position.x+=charge*.09;g.position.z-=charge*.06;g.rotation.z=.13-charge*.1;
     const mesh=g.userData.bow,p=mesh.geometry.attributes.position,base=g.userData.bowBase;
     for(let i=0;i<p.count;i++){const y=base[i*3+1];p.setXYZ(i,base[i*3],y*(1-charge*.045),base[i*3+2]+charge*.11*Math.pow(Math.abs(y)/.66,1.2));}p.needsUpdate=true;mesh.geometry.computeVertexNormals();
-    const nockX=charge*.36,s=g.userData.string.geometry.attributes.position;s.setXYZ(0,0,-.66*(1-charge*.045),.05+charge*.11);s.setXYZ(1,nockX,-.02+charge*.1,.05+charge*.42);s.setXYZ(2,0,.66*(1-charge*.045),.05+charge*.11);s.needsUpdate=true;
+    const nockX=charge*.2,s=g.userData.string.geometry.attributes.position;s.setXYZ(0,0,-.66*(1-charge*.045),.05+charge*.11);s.setXYZ(1,nockX,-.02+charge*.1,.05+charge*.42);s.setXYZ(2,0,.66*(1-charge*.045),.05+charge*.11);s.needsUpdate=true;
     const arrow=g.userData.arrow;arrow.position.z=-.32+charge*.42;arrow.position.x=nockX*.5;arrow.position.y=-.02+charge*.06;arrow.rotation.x=-Math.atan2(charge*.1,.82);arrow.rotation.y=Math.atan2(nockX,.82);arrow.visible=drawing||(!cast?.archery&&!!arrowSkill);
     const mat=arrow.userData.tip.material;mat.color.setHex(arrowSkill?.color??0xbcc6b8);mat.emissive.setHex(arrowSkill?.color??0);mat.emissiveIntensity=arrowSkill?1.6:0;
     g.userData.drawHand.position.set(nockX,charge*.14-.01,.05+charge*.42);g.userData.drawHand.visible=drawing;
@@ -96,7 +96,7 @@ export function animateWeapon(g,{classId,time,bob=0,swing=0,charge=0,drawing=fal
   }else if(classId==='warrior'){
     const p=warriorPose(action,blocking);g.position.add(new THREE.Vector3(p.x,p.y,p.z));g.rotation.copy(g.userData.baseRotation);g.rotation.x+=p.rx;g.rotation.y+=p.ry;g.rotation.z+=p.rz;
   }else{
-    const c=castingPose(cast);g.rotation.copy(g.userData.baseRotation);g.rotation.z-=c.raise*.42;g.rotation.x-=c.raise*.85-c.thrust*.65;g.rotation.y+=c.sweep*.9;g.position.x+=c.sweep*.24;g.position.y+=c.raise*.32-c.thrust*.08;g.position.z+=c.raise*.12-c.thrust*.36;
+    const c=castingPose(cast);g.rotation.copy(g.userData.baseRotation);g.rotation.z+=-c.sweep*.65+c.raise*.12;g.rotation.x+=-c.raise*.5+c.thrust*.9;g.rotation.y+=c.sweep*.85;const tip=g.userData.gem.position,rest=tip.clone().applyEuler(g.userData.baseRotation),turned=tip.clone().applyQuaternion(g.quaternion);g.position.add(rest.sub(turned)).add(new THREE.Vector3(c.sweep*.42,c.raise*.26-c.thrust*.1,c.raise*.06-c.thrust*.45));
     if(g.userData.gem){g.userData.gem.rotation.y=time*.6;g.userData.gem.material.emissiveIntensity=targeting?2.3:1.1;}
   }
 }

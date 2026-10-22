@@ -20,7 +20,7 @@ export const BRANCHES = {
 export const SKILLS = {
   warrior: [
     { name: '회전베기', level: 1, cost: 15, cooldown: 5, power: 1.9, range: 6, kind: 'aoe', color: 0xffd798, description: '주변 6m의 모든 적에게 공격력 190% 피해.' },
-    { name: '돌진참', level: 4, cost: 20, cooldown: 8, power: 2.6, range: 9, kind: 'dash', color: 0xffb47a, description: '전방으로 돌진하고 주변 적에게 260% 피해.' },
+    { name: '돌진참', level: 4, cost: 20, cooldown: 8, power: 2.6, range: 18, kind: 'dash', color: 0xffb47a, description: '힘을 모아 최대 11m 돌진하고 경로의 적에게 260% 피해.' },
     { name: '강철 피부', level: 7, cost: 25, cooldown: 22, duration: 12, kind: 'guard', color: 0xd6e3f2, description: '12초 동안 받는 피해 60% 감소.' },
   ],
   ranger: [
@@ -36,9 +36,9 @@ export const SKILLS = {
 };
 export const BRANCH_SKILLS = {
   knight: [ { name: '성역', kind: 'sanctuary', cost: 30, cooldown: 24, color: 0xffeeae, description: '체력 50% 회복, 12초 피해 60% 감소.' }, { name: '심판', kind: 'aoe', motion: 'judgment', power: 5.5, range: 14, cost: 40, cooldown: 18, color: 0xffdd84, description: '반경 14m에 550% 신성 피해.' } ],
-  berserker: [ { name: '피의 격노', kind: 'rage', cost: 25, cooldown: 25, color: 0xff7777, description: '15초 공격력 60% 증가, 체력 15% 회복.' }, { name: '대지 분쇄', kind: 'freeze', power: 6, range: 15, cost: 40, cooldown: 18, color: 0xe9b172, description: '반경 15m에 600% 피해, 4초 기절.' } ],
+  berserker: [ { name: '피의 격노', kind: 'rage', cost: 25, cooldown: 25, color: 0xff7777, description: '15초 공격력 60% 증가, 체력 15% 회복.' }, { name: '대지 분쇄', kind: 'leapSlam', targeted: true, power: 6, range: 30, radius: 10, cost: 40, cooldown: 18, color: 0xe9b172, description: '5번으로 높이 도약해 범위를 지정하고 좌클릭으로 돌격. 착지 반경 10m에 600% 피해와 4초 기절. 우클릭 취소.' } ],
   warden: [ { name: '화살비', icon: 'arrowRain', targeted: true, motion: 'bowSky', kind: 'arrowRain', power: 4.5, range: 55, radius: 8, delay: .3, duration: 0, cost: 30, cooldown: 13, color: 0xc4e8a0, description: '4번으로 지면 지정 후 좌클릭. 하늘로 활을 쏜 뒤 0.3초 후 반경 8m에 화살비, 450% 피해.' }, { name: '폭풍 사격', icon: 'stormArrow', delivery: 'arrow', kind: 'stormArrow', power: 7.5, range: 60, radius: 6, pullSpeed: 8, gravity: 0, cost: 40, cooldown: 16, color: 0xd9ffbc, description: '직선으로 날아가는 폭풍 화살. 경로 반경 6m의 모든 적에게 750% 피해를 한 번씩 주고 중심으로 끌어당깁니다.' } ],
-  shadow: [ { name: '그림자 화살 폭풍', icon: 'arrowRain', targeted: true, motion: 'bowGround', kind: 'shadowVolley', power: 3.8, range: 35, radius: 8, delay: .3, duration: 0, cost: 25, cooldown: 10, color: 0xbc99ec, description: '4번으로 지면 지정 후 좌클릭. 바닥으로 활을 쏜 뒤 0.3초 후 반경 8m에서 그림자 화살이 솟아 380% 피해.' }, { name: '암살 표식', icon: 'shadowArrow', delivery: 'arrow', kind: 'chainArrow', power: 9, range: 45, bounceRange: 10, bounces: 5, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '5번으로 화살 교체. 첫 적중 후 직전 대상의 10m 내 새 적에게 최대 5회 더 튕깁니다. 대상마다 900% 피해, 같은 적 재적중 없음.' } ],
+  shadow: [ { name: '그림자 화살 폭풍', icon: 'arrowRain', targeted: true, motion: 'bowGround', kind: 'shadowVolley', power: 3.8, range: 35, radius: 8, delay: .3, duration: 0, cost: 25, cooldown: 10, color: 0xbc99ec, description: '4번으로 지면 지정 후 좌클릭. 바닥으로 활을 쏜 뒤 0.3초 후 반경 8m에서 그림자 화살이 솟아 380% 피해.' }, { name: '암살 표식', icon: 'shadowArrow', delivery: 'arrow', kind: 'chainArrow', power: 9, range: 45, bounceRange: 20, bounces: 5, cost: 40, cooldown: 18, color: 0xd6b7ff, description: '5번으로 화살 교체. 첫 적중 후 직전 대상의 20m 내 새 적에게 최대 5회 더 튕깁니다. 대상마다 900% 피해, 같은 적 재적중 없음.' } ],
   archmage: [ { name: '운석 낙하', icon: 'meteor', targeted: true, kind: 'meteorZone', power: 5.5, range: 50, radius: 10, delay: 1.1, duration: 0, cost: 38, cooldown: 13, color: 0xff885a, description: '지면 지정. 1.1초 후 반경 10m에 550% 피해. 좌클릭으로 시전.' }, { name: '비전 폭풍', icon: 'arcaneZone', targeted: true, kind: 'arcaneZone', power: 7, range: 45, radius: 13, delay: .5, duration: 3, cost: 55, cooldown: 20, color: 0xcab1ff, description: '지면 지정. 반경 13m에 3초 동안 총 700% 비전 피해.' } ],
   elementalist: [ { name: '뇌우의 장', icon: 'lightning', targeted: true, kind: 'lightningZone', power: 4.8, range: 45, radius: 11, delay: .45, duration: 0, cost: 32, cooldown: 12, color: 0xa9dfff, description: '지면 지정. 반경 11m 모든 적에게 480% 번개 피해.' }, { name: '정령의 축복', kind: 'blessing', cost: 40, cooldown: 30, color: 0xaaffd7, description: '체력 완전 회복, 15초 공격력 60% 증가.' } ],
 };

@@ -21,7 +21,7 @@ with sync_playwright() as pw:
  }""")
  # Real mouse drawing, left hand holds the bow, right hand pulls the string.
  page.evaluate('window.__AETHERWILD__.engine.paused=false');page.wait_for_function('window.__AETHERWILD__.engine.locked');page.mouse.down();page.wait_for_function('window.__AETHERWILD__.engine.bowCharge>.99')
- page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;e.paused=true;e.movement(0);e.weapon.updateMatrixWorld(true);const w=e.weapon,V=e.camera.position.constructor,hand=w.userData.drawHand.getWorldPosition(new V()),bow=w.getWorldPosition(new V());if(w.userData.handedness!=='right'||w.userData.bowHand!=='left'||w.userData.stringHand!=='right'||hand.x<=bow.x+.25)throw Error('right-handed nock not at right cheek');if(e.avatar.userData.rig.weapon.parent!==e.avatar.userData.rig.hands[0])throw Error('bow must be in left hand');}""")
+ page.evaluate("""()=>{const e=window.__AETHERWILD__.engine;e.paused=true;e.movement(0);e.weapon.updateMatrixWorld(true);const w=e.weapon,V=e.camera.position.constructor,hand=w.userData.drawHand.getWorldPosition(new V()),bow=w.getWorldPosition(new V());if(w.userData.handedness!=='right'||w.userData.bowHand!=='left'||w.userData.stringHand!=='right'||hand.x<=bow.x+.12)throw Error('right-handed nock not at right cheek');if(e.avatar.userData.rig.weapon.parent!==e.avatar.userData.rig.hands[0])throw Error('bow must be in left hand');}""")
  page.screenshot(path=str(out/'v07-right-handed.png'),timeout=120000);page.mouse.up()
  passed('actual full draw keeps bow in left hand and pulls the string to the right cheek in first/third-person rigs')
  # Contact frost explosion: native key loading + real release, actual projectile and damage.

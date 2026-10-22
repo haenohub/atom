@@ -19,7 +19,7 @@ for name in selected:
             # Keep release screenshots current; all historical captures remain in GitHub.
             if 'screenshots' in file.parts:
                 prefix='v'+version.rsplit('.',1)[0]+'-'
-                showcase={'right-handed','frost-burst','shadow-pose','shadow-area','warden-pose','warden-area','storm-shot','mage-sweep'}
+                showcase={'archer-right','frost-sphere','staff-sweep','meteor-impact','arcane-impact','leap-aim','leap-impact','drake'}
                 if not file.name.startswith(prefix) or file.stem.removeprefix(prefix) not in showcase:continue
             files.append(file)
 with zipfile.ZipFile(out.with_suffix('.tmp'),'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
@@ -29,6 +29,7 @@ with zipfile.ZipFile(out.with_suffix('.tmp')) as z:
     assert 'aetherwild/dist/index.html' in z.namelist()
     assert 'aetherwild/dist/build-meta.json' in z.namelist()
     assert not any('/node_modules/' in n or '/.git/' in n for n in z.namelist())
+assert out.with_suffix('.tmp').stat().st_size<100_000_000,'Release exceeds GitHub file size limit'
 out.with_suffix('.tmp').replace(out)
 sha=hashlib.sha256(out.read_bytes()).hexdigest()
 out.with_suffix('.zip.sha256').write_text(f'{sha}  {out.name}\n')

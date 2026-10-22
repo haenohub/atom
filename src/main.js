@@ -12,7 +12,7 @@ import { EQUIPMENT_SLOTS, STAT_NAMES, MAIN_STAT } from './equipment-data.js';
 import { effectiveDropChance, TEST_XP_MULTIPLIER, statPoints, allocateStat, resetStats, unequip, createPlayer, loadPlayer, attributes, xpForLevel, canCraft, craft, equip, consume, advance } from './state.js';
 import { heightAt, biomeAt, isWater } from './terrain.js';
 const $=s=>document.querySelector(s);
-const app=$('#app');let selected='warrior',panel=null,engine,selectedSlot=activeSlot(),saved=loadSlot(selectedSlot),lastHud=0,lastMini=0,lastSkill='',activeTab='inventory',recipeFilter='smith';let quality='high',dialogueNPC=null;
+const app=$('#app');let selected='warrior',panel=null,engine,selectedSlot=activeSlot(),saved=loadSlot(selectedSlot),lastHud=0,lastMini=0,lastSkill='',activeTab='inventory',recipeFilter='smith';let quality='high',dialogueNPC=null,resumingPanel=false;
 app.innerHTML=`
 <canvas id="world" aria-label="에테르와일드 3D 게임 세계"></canvas>
 <div id="loading"><div class="sigil">✧</div><p>자연이 깨어나는 중입니다</p><small>당신만의 세계를 빚고 있습니다</small></div>
@@ -21,7 +21,7 @@ app.innerHTML=`
   <header class="welcome-top"><a class="brand" href="#" aria-label="에테르와일드">✧ <span>AETHERWILD</span></a><span class="edition">AN ORIGINAL OPEN-WORLD RPG <i>01</i></span></header>
   <div class="welcome-body"><div class="intro"><div class="eyebrow"><span class="tiny-line"></span> A NEW AGE OF THE WILDS</div><h1>AETHER<br><span>WILD</span><sup>✧</sup></h1><div class="korean-title">에 테 르 와 일 드</div><p class="intro-text">바람이 이끄는 길을 따라.<br>잊힌 세계에서, 당신의 이야기를 시작하세요.</p><div class="world-tags"><span>오픈월드 탐험</span><b>·</b><span>1·3인칭 전투</span><b>·</b><span>제작과 성장</span></div></div>
   <div class="journey-card"><div class="eyebrow">BEGIN YOUR JOURNEY</div><h2>어떤 길을 걷겠습니까?</h2><p class="muted">새로운 모습, 더 강렬한 전투.</p><div class="save-heading"><span>저장 칸 선택</span><small>5개의 독립적인 여정</small></div><div id="save-slots" aria-label="저장 칸"></div><div id="class-choices"></div><div class="class-path" id="class-path"></div><button id="new-game" class="button primary wide">새로운 여정 <span>↗</span></button><button id="continue-game" class="button ghost wide ${saved?'':'hidden'}">이어하기 <span id="save-info"></span></button><p class="save-note">선택한 칸에 자동 저장 · EXP ×5 / 장비 드랍 ×5</p><div id="reset-confirm" class="hidden"><p>선택한 저장 칸의 여정을 덮어쓰고 새로 시작할까요?</p><div class="row"><button class="button danger" id="confirm-new">새로 시작</button><button class="button ghost" id="cancel-new">돌아가기</button></div></div></div></div>
-  <footer class="welcome-bottom"><span><i class="live-dot"></i> A LIVING, HANDCRAFTED WORLD</span><span>PC · 키보드 & 마우스 <span class="footer-divider">|</span> v0.7 · WIND & SHADOW</span></footer>
+  <footer class="welcome-bottom"><span><i class="live-dot"></i> A LIVING, HANDCRAFTED WORLD</span><span>PC · 키보드 & 마우스 <span class="footer-divider">|</span> v0.8 · WILD MOTION</span></footer>
 </section>
 <section id="hud" class="hidden" aria-label="게임 상태">
   <div class="hud-top"><div class="region"><div class="eyebrow" id="region-en">DAWNWOOD</div><h2 id="region-name">새벽의 숲</h2><div class="region-meta"><i class="live-dot"></i><span id="region-level">권장 레벨 1–4</span><span id="location-state">자유 탐험</span></div></div><div class="compass"><div class="compass-label">N</div><div class="compass-scale">W ──── ◇ ──── E</div><div id="compass-degrees">0°</div></div><div class="minimap-wrap"><canvas id="minimap" width="150" height="150" aria-label="미니맵"></canvas><span class="map-hint">M <b>지도</b></span></div></div>
@@ -98,8 +98,8 @@ function hud(dt){
   if(lastMini>.35){drawMap($('#minimap'),true);lastMini=0;}
 }
 function startGame(player){engine.saveSlot=selectedSlot;selectSlot(selectedSlot);saved=player;$('#welcome').classList.add('hidden');$('#hud').classList.remove('hidden');$('#pause').classList.add('hidden');$('#death').classList.add('hidden');$('#overlay').classList.add('hidden');panel=null;engine.start(player);makeHotbar();drawMap($('#minimap'),true);engine.persist();toast(player.classId==='ranger'?'궁수 · 좌클릭을 누르고 활을 당긴 뒤 놓아 발사 · 숫자 키로 화살 변경 · 전직 후 4번은 범위 지정':player.classId==='mage'?'마법사 · 좌클릭 마력구체 · 숫자 키로 범위 스킬 · Shift 텔레포트':'전사 · 좌클릭 공격 · 스킬 캔슬 · Shift 짧은 대쉬');}
-function showPause(){if(!engine.active||panel||engine.player.hp<=0)return;engine.paused=true;$('#pause').classList.remove('hidden');}
-function closePanels(){panel=null;$('#overlay').classList.add('hidden');$('#pause').classList.add('hidden');engine.resume();}
+function showPause(){if(!engine.active||panel||resumingPanel||engine.player.hp<=0)return;engine.paused=true;$('#pause').classList.remove('hidden');}
+function closePanels(deferEscape=false){resumingPanel=true;panel=null;$('#overlay').classList.add('hidden');$('#pause').classList.add('hidden');if(deferEscape){window.addEventListener('keyup',function resume(e){if(e.code==='Escape'||e.code==='Tab'){window.removeEventListener('keyup',resume);engine.resume();}});}else engine.resume();}
 function openPanel(tab='inventory'){
   if(!engine?.active||engine.player.hp<=0)return;panel=tab;activeTab=tab;engine.pause();$('#pause').classList.add('hidden');$('#overlay').classList.remove('hidden');renderPanel();
 }
@@ -173,9 +173,10 @@ app.addEventListener('change',async e=>{
     }catch{toast('유효한 에테르와일드 저장 파일이 아닙니다.');}
   }
 });
-function handleKey(code){const map={KeyI:'inventory',KeyC:'craft',KeyM:'map',KeyJ:'journal',KeyK:'skills'};if(map[code]){if(panel===map[code])closePanels();else openPanel(map[code]);return;}if(code==='Escape'||code==='Tab'){if(panel)closePanels();else if(engine.paused){$('#pause').classList.add('hidden');engine.resume();}else{engine.pause();showPause();}}}
-try{
-  engine=new GameEngine($('#world'),{toast,loot:lootFeed,hit:crit=>{const el=$('#hit-marker');el.classList.remove('hit','crit');void el.offsetWidth;el.classList.add('hit');if(crit)el.classList.add('crit');},damage:floatingDamage,biome:changeBiome,frame:hud,key:handleKey,unlock:showPause,camp:()=>openPanel('skills'),npc:openDialogue,change:()=>{if(panel)renderPanel();},hurt:()=>{$('#hurt-flash').classList.remove('flash');void $('#hurt-flash').offsetWidth;$('#hurt-flash').classList.add('flash');},dead:()=>{$('#pause').classList.add('hidden');$('#death').classList.remove('hidden');},level:()=>{if(panel)renderPanel();}});
-  quality=engine.quality;$('#loading').classList.add('hidden');$('#welcome').classList.remove('hidden');
+function handleKey(code){const map={KeyI:'inventory',KeyC:'craft',KeyM:'map',KeyJ:'journal',KeyK:'skills'};if(map[code]){if(panel===map[code])closePanels();else openPanel(map[code]);return;}if(code==='Escape'||code==='Tab'){if(panel){closePanels(true);return;}resumingPanel=false;if(engine.paused){$('#pause').classList.add('hidden');engine.resume();}else{engine.pause();showPause();}}}
+void(async()=>{try{
+  engine=new GameEngine($('#world'),{toast,loot:lootFeed,hit:crit=>{const el=$('#hit-marker');el.classList.remove('hit','crit');void el.offsetWidth;el.classList.add('hit');if(crit)el.classList.add('crit');},damage:floatingDamage,biome:changeBiome,frame:hud,key:handleKey,unlock:showPause,lock:()=>{resumingPanel=false;},camp:()=>openPanel('skills'),npc:openDialogue,change:()=>{if(panel)renderPanel();},hurt:()=>{$('#hurt-flash').classList.remove('flash');void $('#hurt-flash').offsetWidth;$('#hurt-flash').classList.add('flash');},dead:()=>{$('#pause').classList.add('hidden');$('#death').classList.remove('hidden');},level:()=>{if(panel)renderPanel();}});
+  await engine.prepareCombat();quality=engine.quality;$('#loading').classList.add('hidden');$('#welcome').classList.remove('hidden');
   if(import.meta.env.DEV)window.__AETHERWILD__={get engine(){return engine;},openPanel,startGame,createPlayer};
 }catch(error){console.error(error);$('#loading').classList.add('hidden');const el=$('#webgl-error');el.classList.remove('hidden');el.innerHTML='<div class="pause-card"><h2>3D 세계를 열지 못했습니다.</h2><p>WebGL 2를 지원하는 최신 Chrome, Edge 또는 Firefox에서 하드웨어 가속을 켜고 다시 실행해 주세요.</p><button class="button primary" onclick="location.reload()">다시 시도</button></div>';}
+})();

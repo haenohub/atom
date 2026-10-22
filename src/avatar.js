@@ -1,3 +1,4 @@
+import { smoothPhase } from './animation.js';
 import * as THREE from 'three';
 import { sculptGeometry } from './sculpt.js';
 import { loft,plate,taperedCurve,attach as add } from './modeling.js';
@@ -55,20 +56,20 @@ export function createAvatar(p){
  const held=createWeapon(p);held.traverse(o=>{if(o.userData.firstPersonHand)o.visible=false;});held.position.set(0,warrior?-.1:-.02,warrior?-.16:-.02);held.rotation.set(warrior?-2.1:0,0,ranger?.08:0);held.scale.setScalar(ranger?.82:1);held.userData.base=held.position.clone();held.userData.baseRotation=held.rotation.clone();rig.hands[ranger?0:1].add(held);rig.weapon=held;
  root.userData={rig,classId:p.classId,equipment:{...p.equipment},profile:{female,broad,height:1.86,headRatio:7.6}};root.visible=false;return root;
 }
-export function animateAvatar(root,{time,moving,sprinting,jumping,climbing,action,cast,charge=0,drawing,arrowSkill,swing=0,blocking}){
- const r=root.userData.rig,phase=time*(sprinting?12:8),walk=moving?1:0,p=warriorPose(action,blocking),c=castingPose(cast);r.hips.position.y=.96+(moving?Math.abs(Math.sin(phase))*.025:Math.sin(time*1.8)*.009);r.torso.rotation.set(p.lean,p.torso,0);
+export function animateAvatar(root,{dt=0,time,moving,sprinting,jumping,climbing,action,cast,charge=0,drawing,arrowSkill,swing=0,blocking}){
+ const r=root.userData.rig,phase=time*(sprinting?12:8),targetWalk=moving?1:0,walk=r.moveBlend=dt>0?THREE.MathUtils.lerp(r.moveBlend||0,targetWalk,1-Math.exp(-dt*18)):targetWalk,p=warriorPose(action,blocking),c=castingPose(cast);r.hips.position.y=.96+(moving?Math.abs(Math.sin(phase))*.025:Math.sin(time*1.8)*.009);r.torso.rotation.set(p.lean,p.torso,0);
  r.legs.forEach((leg,i)=>{leg.rotation.x=jumping?-.3:Math.sin(phase+i*Math.PI)*.6*walk;r.knees[i].rotation.x=jumping?.65:Math.max(0,-Math.sin(phase+i*Math.PI))*.65*walk;});
  r.arms.forEach((arm,i)=>{arm.rotation.set(Math.sin(phase+(i?0:Math.PI))*.35*walk-.08,0,(i?1:-1)*.06);r.elbows[i].rotation.set(-.12,0,0);r.hands[i].rotation.set(0,0,0);});
  if(climbing){r.arms.forEach((arm,i)=>arm.rotation.x=2.5+Math.sin(phase+i*Math.PI)*.4);}
  else if(root.userData.classId==='warrior'){
-  r.arms[1].rotation.set(.15,0,.04);if(action){const w=Math.min(1,action.age/action.impact),strike=Math.min(1,Math.max(0,(action.age-action.impact)/.12)),fade=1-Math.min(1,Math.max(0,(action.age/action.duration-.65)/.35)),side=action.combo%2?1:-1,heavy=['judgment','freeze'].includes(action.kind)||(action.kind==='basic'&&action.combo%3===2);
+  r.arms[1].rotation.set(.15,0,.04);if(action){const w=smoothPhase(action.age/action.impact),strike=action.kind==='leapAim'?0:smoothPhase((action.age-action.impact)/.12),fade=action.kind==='leapAim'?1:1-smoothPhase((action.age/action.duration-.65)/.35),side=action.combo%2?1:-1,heavy=['judgment','freeze','leapAim','leapSlam','leapLanding'].includes(action.kind)||(action.kind==='basic'&&action.combo%3===2);
    if(heavy){r.arms[1].rotation.set((2.65*w-1.9*strike)*fade,.1,(.15*w-.25*strike)*fade);r.arms[0].rotation.x=(2.35*w-1.65*strike)*fade;r.elbows[1].rotation.x=(-.65*w+.55*strike)*fade;}
    else if(action.kind==='dash'){r.arms[1].rotation.set((.85*w+strike)*fade,-.3*w*fade,.15);r.elbows[1].rotation.x=(-1.4*w+1.25*strike)*fade;}
    else{r.arms[1].rotation.set((1.1*w-.2*strike)*fade,side*(.9*w-1.5*strike)*fade,side*(-.6*w+1.1*strike)*fade);r.elbows[1].rotation.x=(-.6*w+.4*strike)*fade;r.arms[0].rotation.x=.8*w*fade;}
   }if(action?.kind==='aoe')r.torso.rotation.y+=Math.sin(Math.min(1,action.age/action.duration)*Math.PI*2)*1.2;
  }
  else if(root.userData.classId==='ranger'&&(drawing||cast?.archery)){const bow=archeryPose(cast),draw=cast?.archery?bow.draw:charge;r.arms[0].rotation.set(1.48+bow.pitch,-.15,-.12);r.elbows[0].rotation.x=-.08;r.arms[1].rotation.set(1.2+bow.pitch,.65+draw*.5,.4);r.elbows[1].rotation.x=-1.4*draw;r.hands[0].rotation.x=-(r.arms[0].rotation.x+r.elbows[0].rotation.x)+bow.pitch;r.torso.rotation.y=-.13*draw;}
- else if(root.userData.classId==='mage'){r.arms[1].rotation.set(2.6*c.raise-.9*c.thrust,-.15*c.raise-c.sweep*.9,.2*c.raise+c.sweep*.35);r.elbows[1].rotation.x=-.5*c.raise;r.arms[0].rotation.x=1.3*c.spread;r.elbows[0].rotation.x=-.6*c.spread;r.torso.rotation.set(-.09*c.raise+.14*c.thrust,-c.sweep*.25,0);r.hands[1].rotation.x=-(r.arms[1].rotation.x+r.elbows[1].rotation.x)-r.torso.rotation.x;}
+ else if(root.userData.classId==='mage'){r.arms[1].rotation.set(1.65*c.raise-.5*c.thrust,-.15*c.raise-c.sweep*.9,.2*c.raise+c.sweep*.35);r.elbows[1].rotation.x=-.5*c.raise;r.arms[0].rotation.x=1.3*c.spread;r.elbows[0].rotation.x=-.6*c.spread;r.torso.rotation.set(-.09*c.raise+.14*c.thrust,-c.sweep*.25,0);r.hands[1].rotation.set(-.25*c.raise+.4*c.thrust,c.sweep*.3,-c.sweep*.6);}
  else if(cast){r.arms[0].rotation.x=2.1*c.raise;r.arms[1].rotation.x=1.5*c.raise;r.torso.rotation.y=Math.sin(cast.age*5)*c.spread*.3;}
  if(root.userData.classId==='ranger'){const bow=archeryPose(cast);animateWeapon(r.weapon,{classId:'ranger',time,charge:cast?.archery?bow.draw:charge,drawing:cast?.archery?bow.draw>0:drawing,arrowSkill});}
  const pos=r.cape.geometry.attributes.position;for(let i=0;i<pos.count;i++){const y=r.capeBase[i*3+1];pos.setZ(i,r.capeBase[i*3+2]+Math.sin(time*3+y*6)*Math.abs(y)*.06+(moving?.12:0)*Math.abs(y));}pos.needsUpdate=true;r.cape.geometry.computeVertexNormals();

@@ -17,7 +17,7 @@ export function isArrowSkill(player, skill) { return player.classId === 'ranger'
 export function inSpellArea(target, center, radius, verticalRange = 7) {
   return Math.hypot(target.x - center.x, target.z - center.z) <= radius && Math.abs(target.y - center.y) <= verticalRange;
 }
-export function nextChainTarget(targets, center, hitIds, range = 10) {
+export function nextChainTarget(targets, center, hitIds, range = 20) {
   let best = null, distance = Infinity;
   for (const target of targets) {
     if (!target.alive || hitIds.has(target.id)) continue;

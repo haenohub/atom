@@ -8,7 +8,7 @@ import { SKILLS,BRANCH_SKILLS } from '../src/data.js';
 import { createPlayer } from '../src/state.js';
 import { heightAt } from '../src/terrain.js';
 function engine(cls='ranger'){
- const e=Object.create(GameEngine.prototype);e.player=createPlayer(cls);e.player.level=20;e.player.mana=999;e.world={monsters:[],colliders:[]};e.scene=new THREE.Scene();e.camera=new THREE.PerspectiveCamera();e.camera.rotation.order='YXZ';e.camera.position.set(0,101.75,-14);e.feetY=100;e.yaw=0;e.fields=[];e.projectiles=[];e.cooldowns=[0,0,0,0,0];e.activeSpellIndex=null;e.loadedArrowIndex=null;e.drawStartedAt=null;e.castAction=null;e.attackCooldown=0;e.warriorAction=null;e.events={};e.hits=[];e.visuals=[];e.fx={hidePreview(){},setPreview(){},spell(...args){e.visuals.push(args);},bowShot(...args){e.launch=args;},trail(){},sigil(){}};e.hit=(m,p)=>{if(!m.alive)return;m.hp-=p;e.hits.push(m.id);if(m.hp<=0)m.alive=false;};e.notify=e.sound=()=>{};e.removeObject=o=>e.scene.remove(o);return e;
+ const e=Object.create(GameEngine.prototype);e.player=createPlayer(cls);e.player.level=20;e.player.mana=999;e.world={monsters:[],colliders:[]};e.scene=new THREE.Scene();e.camera=new THREE.PerspectiveCamera();e.camera.rotation.order='YXZ';e.camera.position.set(0,101.75,-14);e.feetY=100;e.yaw=0;e.fields=[];e.projectiles=[];e.cooldowns=[0,0,0,0,0];e.activeSpellIndex=null;e.loadedArrowIndex=null;e.drawStartedAt=null;e.castAction=null;e.attackCooldown=0;e.warriorAction=null;e.events={};e.hits=[];e.visuals=[];e.fx={hidePreview(){},setPreview(){},frostBurst(contact,radius){e.visuals.push([contact,radius,'frostBurst']);},spell(...args){e.visuals.push(args);},bowShot(...args){e.launch=args;},trail(){},sigil(){}};e.hit=(m,p)=>{if(!m.alive)return;m.hp-=p;e.hits.push(m.id);if(m.hp<=0)m.alive=false;};e.notify=e.sound=()=>{};e.removeObject=o=>e.scene.remove(o);return e;
 }
 function mob(e,id,x,z,y=100){const group=new THREE.Group();group.position.set(x,y,z);group.userData.hitRadius=.25;group.userData.hitHeight=1.1;const m={id,x,z,group,alive:true,hp:10000,def:{scale:1}};e.world.monsters.push(m);return m;}
 function arrow(e,kind,skill,point=new THREE.Vector3(0,101.1,-18),velocity=new THREE.Vector3(0,0,-40)){
@@ -20,14 +20,14 @@ test('frost contact explodes once on all enemies within five metres, including t
 });
 test('frost hitting empty ground creates no explosion damage',()=>{const e=engine();mob(e,'near',3,-20,0);arrow(e,'frost',SKILLS.ranger[1],new THREE.Vector3(0,heightAt(0,-20)-.1,-20));e.updateProjectiles(.01);assert.deepEqual(e.hits,[]);assert.equal(e.visuals.length,0);});
 test('piercing arrow still crosses multiple targets exactly once',()=>{const e=engine();mob(e,'a',0,-20);mob(e,'b',0,-22);arrow(e,'pierce',SKILLS.ranger[0]);for(let i=0;i<50;i++)e.updateProjectiles(.01);assert.deepEqual(e.hits,['a','b']);});
-test('chain selects a living unhit target within ten 3D metres with deterministic ties',()=>{
- const center={x:0,y:0,z:0},targets=[{id:'far',alive:true,x:10.01,y:0,z:0},{id:'dead',alive:false,x:1,y:0,z:0},{id:'used',alive:true,x:2,y:0,z:0},{id:'b',alive:true,x:10,y:0,z:0},{id:'a',alive:true,x:-10,y:0,z:0}];assert.equal(nextChainTarget(targets,center,new Set(['used'])).id,'a');assert.equal(nextChainTarget(targets,center,new Set(['used','a','b'])),null);
+test('chain selects a living unhit target within twenty 3D metres with deterministic ties',()=>{
+ const center={x:0,y:0,z:0},targets=[{id:'far',alive:true,x:20.01,y:0,z:0},{id:'dead',alive:false,x:1,y:0,z:0},{id:'used',alive:true,x:2,y:0,z:0},{id:'b',alive:true,x:20,y:0,z:0},{id:'a',alive:true,x:-20,y:0,z:0}];assert.equal(nextChainTarget(targets,center,new Set(['used'])).id,'a');assert.equal(nextChainTarget(targets,center,new Set(['used','a','b'])),null);
 });
 test('assassin arrow makes five bounces after its initial hit and never hits a target twice',()=>{
  const e=engine();for(let i=0;i<8;i++)mob(e,'m'+i,0,-20-i*3);arrow(e,'chainArrow',BRANCH_SKILLS.shadow[1]);for(let i=0;i<400;i++)e.updateProjectiles(.005);assert.deepEqual(e.hits,['m0','m1','m2','m3','m4','m5']);assert.equal(e.projectiles.length,0);
 });
 test('chain range is measured from each last target and stops if the next is too far',()=>{
- const e=engine();mob(e,'first',0,-20);mob(e,'second',0,-29.9);mob(e,'beyond',0,-40.01);arrow(e,'chainArrow',BRANCH_SKILLS.shadow[1]);for(let i=0;i<300;i++)e.updateProjectiles(.005);assert.deepEqual(e.hits,['first','second']);
+ const e=engine();mob(e,'first',0,-20);mob(e,'second',0,-39.9);mob(e,'beyond',0,-60.01);arrow(e,'chainArrow',BRANCH_SKILLS.shadow[1]);for(let i=0;i<300;i++)e.updateProjectiles(.005);assert.deepEqual(e.hits,['first','second']);
 });
 test('a lethal first hit can still redirect the arrow, and dead destinations are skipped',()=>{
  const e=engine(),first=mob(e,'first',0,-20),second=mob(e,'second',0,-24);mob(e,'third',3,-25);first.hp=1;arrow(e,'chainArrow',BRANCH_SKILLS.shadow[1]);e.updateProjectiles(.06);second.alive=false;for(let i=0;i<150;i++)e.updateProjectiles(.005);assert.deepEqual(e.hits,['first','third']);

@@ -23,7 +23,7 @@ export function buildSpellVisual(kind,radius,color,point,delay,duration){
     for(let i=0;i<9;i++){
       const pts=[];for(let j=0;j<7;j++){const a=j*.27+i*.7;const v=new THREE.Vector3(Math.cos(a)*Math.sin(i+1),Math.sin(a),Math.cos(a)*Math.cos(i+1)).normalize().multiplyScalar(1.66+Math.sin(j*5+i)*.025);v.y*=1.1;pts.push(v);}tube(meteor,pts,0xff5d16,.018,.85);
     }
-    const light=new THREE.PointLight(0xff8d3b,8,13,2);meteor.add(light);root.add(meteor);
+    root.add(meteor);
     meteorTail=mesh(root,new THREE.ConeGeometry(1.7,7,20,8,true),new THREE.ShaderMaterial({uniforms:{uTime:{value:0},uColor:{value:new THREE.Color(0xff5214)},uFade:{value:.6}},vertexShader:flameVertex,fragmentShader:flameFragment,transparent:true,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
     for(let i=0;i<14;i++){const a=i/14*TAU,r=radius*(.18+Math.random()*.65),o=mesh(root,weatheredRock(1),surfaceMaterial('meteor',0xa79b8a),[Math.cos(a)*r,0,Math.sin(a)*r]);o.scale.setScalar(.12+Math.random()*.26);falling.push({o,origin:o.position.clone(),vy:4+Math.random()*5});}
     const crater=mesh(root,new THREE.RingGeometry(radius*.15,radius*.72,64),new THREE.MeshBasicMaterial({color:0x2c251f,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide}));crater.rotation.x=-Math.PI/2;crater.position.y=.08;dynamic.push(crater);ring(radius*.55,.12);ring(radius*.8,.14);
@@ -53,8 +53,8 @@ export function buildSpellVisual(kind,radius,color,point,delay,duration){
     for(let i=0;i<12;i++){const a=i/12*TAU,o=mesh(root,new THREE.OctahedronGeometry(.13),glow(color,.85),[Math.cos(a)*radius*.6,1+Math.sin(i)*.5,Math.sin(a)*radius*.6]);shards.push({o,a});}
   }
   const allMaterials=new Set();root.traverse(o=>{if(o.material&&!o.material.isShaderMaterial)allMaterials.add(o.material);});const opacities=new Map([...allMaterials].map(m=>[m,m.opacity]));
-  return {root,meteor,arrows:falling,update(age,dt,fade){
-    const active=age>=delay,after=Math.max(0,age-delay);root.visible=active||!!meteor;
+  return {root,meteor,arrows:falling,reset(location){point.copy(location);for(const {origin}of falling)origin.y=ground(origin.x,origin.z);},update(age,dt,fade,impact){
+    const active=impact===undefined?age>=delay:impact,after=Math.max(0,age-delay);root.visible=active||!!meteor;accent.visible=active&& !['meteorZone','arcaneZone'].includes(kind);
     dynamic.forEach(o=>{o.visible=active;});rings.forEach((o,i)=>{o.visible=active;o.scale.setScalar(1+after*(kind==='meteorZone'?1.2:.08));o.rotation.z=age*.2*(i%2?1:-1);});
     if(meteor){const t=Math.min(1,age/Math.max(.01,delay));meteor.visible=!active;meteor.position.set(12*(1-t),2+28*(1-t*t),6*(1-t));meteor.rotation.set(age*1.1,age*.9,age*.3);meteorTail.visible=!active;meteorTail.position.copy(meteor.position).add(new THREE.Vector3(1.2,3.4,.6));meteorTail.rotation.z=-.3;meteorTail.material.uniforms.uTime.value=age;}
     flames.forEach((o,i)=>{o.visible=active;o.scale.y=.8+Math.sin(age*8+i)*.22;o.material.uniforms.uTime.value=age+i;o.material.uniforms.uFade.value=fade;});

@@ -1,3 +1,4 @@
+import { refineCreature } from './creature-refinement.js';
 import { detailCreature } from './creature-detail.js';
 import { taperedCurve,plate,mergeStaticParts } from './modeling.js';
 import * as THREE from 'three';
@@ -71,7 +72,7 @@ export function createSculptMonster(type){
   // Actual eyes sit on the sculpted orbital ridge rather than a spherical head.
   if(quad||stone||slime||ray||d.shape==='spirit')for(const side of [-1,1]){
     const pos=quad?[side*.245,(stag?2.43:boar?1.25:1.65),drake?-1.94:-1.42]:stone?[side*.2,3.1,-.405]:ray?[side*.22,1.27,-1.02]:slime?[side*.33,.97,-.86]:[side*.13,2.12,-.24];
-    const local=new THREE.Vector3(...pos).sub(new THREE.Vector3(...anchors[headId]));const eye=accessory(rig.head,new THREE.SphereGeometry(1,10,8),eyeMat,local.toArray());eye.scale.set(stone?.08:.055,stone?.055:.045,.035);if(quad){const pupil=accessory(rig.head,new THREE.SphereGeometry(1,10,8),new THREE.MeshStandardMaterial({color:0x181d1a,roughness:.25}),[local.x,local.y,local.z-.032]);pupil.scale.set(drake?.012:.022,.032,.012);}
+    const local=new THREE.Vector3(...pos).sub(new THREE.Vector3(...anchors[headId]));if(!quad){const eye=accessory(rig.head,new THREE.SphereGeometry(1,10,8),eyeMat,local.toArray());eye.scale.set(stone?.08:.055,stone?.055:.045,.035);if(quad){const pupil=accessory(rig.head,new THREE.SphereGeometry(1,10,8),new THREE.MeshStandardMaterial({color:0x181d1a,roughness:.25}),[local.x,local.y,local.z-.032]);pupil.scale.set(drake?.012:.022,.032,.012);}}
     if(quad&&!stag){const nose=accessory(rig.head,new THREE.SphereGeometry(1,12,8),new THREE.MeshStandardMaterial({color:0x24272a,roughness:.3}),[0,(boar?1.05:1.47)-anchors[headId][1],(drake?-2.26:-1.81)-anchors[headId][2]]);nose.scale.set(boar?.26:.16,.105,.11);}
     if(stag||boar||drake){const base=stag?[side*.2,2.65,-1.02]:boar?[side*.34,1.03,-1.55]:[side*.25,1.91,-1.35];const pts=[base,[base[0]*1.6,base[1]+.3,base[2]+.05],[base[0]*1.8,base[1]+.65,base[2]+.2]];accessory(torso,new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),16,stag?.035:.06,7),ivory,[0,0,0]);if(stag)for(let j=0;j<3;j++){const p=pts[0];accessory(torso,new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(p[0]*1.3,p[1]+j*.13,p[2]+.05),new THREE.Vector3(side*(.55+j*.08),p[1]+.36+j*.13,p[2]-.1)]),6,.02,6),ivory,[0,0,0]);}}
   }
@@ -89,7 +90,7 @@ export function createSculptMonster(type){
   }
   if(d.shape==='spirit'){const crescent=accessory(torso,new THREE.TorusGeometry(.44,.035,8,40,Math.PI*1.55),ivory,[0,2.3,.04]);crescent.rotation.z=-.55;for(let i=0;i<3;i++)ribbon(torso,[[0,1.5,0],[Math.sin(i*2)*.65,1.05,.3],[Math.sin(i*2)*.6,.4,.5],[0,.1,.7]],.15,material);}
   if(type==='frostwolf')for(let i=0;i<8;i++){const crystal=accessory(torso,new THREE.OctahedronGeometry(.2),ivory,[0,1.68,-.5+i*.22]);crystal.scale.set(.6,2,.8);}
-  g.userData.headId=headId;detailCreature(g,type,d,rig,anchors);mergeStaticParts(torso);
+  g.userData.headId=headId;detailCreature(g,type,d,rig,anchors);refineCreature(g,type,d,rig,anchors);mergeStaticParts(torso);
   torso.traverse(o=>{o.userData.restPosition=o.position.clone();o.userData.restRotation=o.rotation.clone();o.userData.restScale=o.scale.clone();});
   g.userData.rig=rig;g.userData.continuousSurface=true;g.userData.hitHeight=stone?1.8:stag||d.shape==='roc'?1.4:1.05;g.userData.hitRadius=stone?.85:ray?1:.7;g.scale.setScalar(d.scale);return g;
 }
